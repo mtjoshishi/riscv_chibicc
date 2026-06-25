@@ -14,6 +14,8 @@ struct Token {
   struct Token *next;  // Next input token
   int val;             // Numerical value if kind is 'TK_NUM'
   char *str;           // String of token
+
+  char *source_input; // Input source
 };
 
 #endif // CHIBICC_TYPES_H_

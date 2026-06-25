@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -24,6 +25,26 @@ void error(char *fmt, ...) {
             __FILE__, __LINE__);                                               \
     }                                                                          \
   } while (0)
+
+/**
+ * @brief Reports the error location.
+ * @param loc Location where the error occurs.
+ * @param fmt Format string of error message.
+ */
+static void error_tok(struct Token *token, char *fmt, ...) {
+  CHECK(token != NULL);
+  va_list ap;
+  va_start(ap, fmt);
+
+  char *source = token->source_input;
+  ptrdiff_t pos = token->str - source;
+  fprintf(stderr, "%s\n", source);
+  fprintf(stderr, "%*s", (int)pos, "");
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
 
 /**
  * @brief If the next token is expected character, consume the token and
@@ -48,7 +69,7 @@ bool consume(struct Token **token_ptr, char op) {
 void seek_if_expect(struct Token **token_ptr, char op) {
   CHECK(token_ptr != NULL && *token_ptr != NULL);
   if ((*token_ptr)->kind != TK_RESERVED || (*token_ptr)->str[0] != op)
-    error("Expected '%c'", op);
+    error_tok(*token_ptr, "Expected '%c'", op);
   *token_ptr = (*token_ptr)->next;
 }
 
@@ -61,7 +82,7 @@ void seek_if_expect(struct Token **token_ptr, char op) {
 int seek_if_expect_number(struct Token **token_ptr) {
   CHECK(token_ptr != NULL && *token_ptr != NULL);
   if ((*token_ptr)->kind != TK_NUM)
-    error("The given token is not a numeric value.");
+    error_tok(*token_ptr, "The given token is not a numeric value.");
   int val = (*token_ptr)->val;
   *token_ptr = (*token_ptr)->next;
   return val;
@@ -95,8 +116,9 @@ struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr,
   return tok;
 }
 
-struct Token *tokenize(char *p) {
-  CHECK(p != NULL);
+struct Token *tokenize(char *input) {
+  CHECK(input != NULL);
+  char *p = input;
   struct Token head;
   head.next = NULL;
   struct Token *cur = &head;
@@ -110,18 +132,21 @@ struct Token *tokenize(char *p) {
 
     if (*p == '+' || *p == '-') {
       cur = new_token(TK_RESERVED, &cur, p++);
+      cur->source_input = input;
       continue;
     }
 
     if (isdigit(*p)) {
       cur = new_token(TK_NUM, &cur, p);
       cur->val = (int)strtol(p, &p, 10);
+      cur->source_input = input;
       continue;
     }
 
-    error("Invalid token.");
+    error_tok(cur, "Invalid token.");
   }
 
-  new_token(TK_EOF, &cur, p);
+  cur = new_token(TK_EOF, &cur, p);
+  cur->source_input = input;
   return head.next;
 }
