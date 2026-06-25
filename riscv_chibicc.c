@@ -1,33 +1,28 @@
 #include <stdio.h>
-#include <stdlib.h>
+
+#include "chibicc_types.h"
+#include "tokenize.h"
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "Invalid number of arguments.\n");
+    error("Invalid number of arguments.");
     return 1;
   }
 
-  char *p = argv[1];
+  struct Token *token = tokenize(argv[1]);
 
   printf(".globl main\n");
   printf("main:\n");
-  printf("    li a0,%ld\n", strtol(p, &p, 10));
+  printf("    li a0,%d\n", seek_if_expect_number(&token));
 
-  while (*p) {
-    if (*p == '+') {
-      p++;
-      printf("    addi a0,a0,%ld\n", strtol(p, &p, 10));
+  while (!at_eof(&token)) {
+    if (consume(&token, '+')) {
+      printf("    addi a0,a0,%d\n", seek_if_expect_number(&token));
       continue;
     }
 
-    if (*p == '-') {
-      p++;
-      printf("    addi a0,a0,-%ld\n", strtol(p, &p, 10));
-      continue;
-    }
-
-    fprintf(stderr, "Unexpected character: '%c'\n", *p);
-    return 1;
+    seek_if_expect(&token, '-');
+    printf("    addi a0,a0,-%d\n", seek_if_expect_number(&token));
   }
 
   printf("    ret\n");
