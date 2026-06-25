@@ -32,7 +32,7 @@ void error(char *fmt, ...) {
  * @param fmt Format string of error message.
  */
 static void error_tok(struct Token *token, char *fmt, ...) {
-  CHECK(token != NULL);
+  CHECK(token != nullptr);
   va_list ap;
   va_start(ap, fmt);
 
@@ -54,7 +54,7 @@ static void error_tok(struct Token *token, char *fmt, ...) {
  * @return boolean
  */
 bool consume(struct Token **token_ptr, char op) {
-  CHECK(token_ptr != NULL && *token_ptr != NULL);
+  CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   if ((*token_ptr)->kind != TK_RESERVED || (*token_ptr)->str[0] != op)
     return false;
   *token_ptr = (*token_ptr)->next;
@@ -67,7 +67,7 @@ bool consume(struct Token **token_ptr, char op) {
  * @param op Expected character.
  */
 void seek_if_expect(struct Token **token_ptr, char op) {
-  CHECK(token_ptr != NULL && *token_ptr != NULL);
+  CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   if ((*token_ptr)->kind != TK_RESERVED || (*token_ptr)->str[0] != op)
     error_tok(*token_ptr, "Expected '%c'", op);
   *token_ptr = (*token_ptr)->next;
@@ -80,7 +80,7 @@ void seek_if_expect(struct Token **token_ptr, char op) {
  * @return Value of a give token.
  */
 int seek_if_expect_number(struct Token **token_ptr) {
-  CHECK(token_ptr != NULL && *token_ptr != NULL);
+  CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   if ((*token_ptr)->kind != TK_NUM)
     error_tok(*token_ptr, "The given token is not a numeric value.");
   int val = (*token_ptr)->val;
@@ -94,7 +94,7 @@ int seek_if_expect_number(struct Token **token_ptr) {
  * @return boolean If a give token is at EOF, returns true.
  */
 bool at_eof(struct Token **token_ptr) {
-  CHECK(token_ptr != NULL && *token_ptr != NULL);
+  CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   return (*token_ptr)->kind == TK_EOF;
 }
 
@@ -107,9 +107,9 @@ bool at_eof(struct Token **token_ptr) {
  */
 struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr,
                         char *str) {
-  CHECK(cur_ptr != NULL && *cur_ptr != NULL && str != NULL);
+  CHECK(cur_ptr != nullptr && *cur_ptr != nullptr && str != nullptr);
   struct Token *tok = (struct Token *)calloc(1, sizeof(struct Token));
-  CHECK(tok != NULL);
+  CHECK(tok != nullptr);
   tok->kind = kind;
   tok->str = str;
   (*cur_ptr)->next = tok;
@@ -117,10 +117,10 @@ struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr,
 }
 
 struct Token *tokenize(char *input) {
-  CHECK(input != NULL);
+  CHECK(input != nullptr);
   char *p = input;
   struct Token head;
-  head.next = NULL;
+  head.next = nullptr;
   struct Token *cur = &head;
 
   while (*p) {
