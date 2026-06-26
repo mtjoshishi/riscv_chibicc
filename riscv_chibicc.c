@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "chibicc_error.h"
 #include "chibicc_types.h"
 #include "tokenize.h"
 

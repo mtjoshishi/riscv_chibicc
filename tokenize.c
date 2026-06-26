@@ -7,24 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "chibicc_error.h"
 #include "chibicc_types.h"
-
-/// @brief Reports the error.
-void error(char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
-#define CHECK(cond)                                                            \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      error("Internal error: Assertion '%s' is failed at %s:%d", #cond,        \
-            __FILE__, __LINE__);                                               \
-    }                                                                          \
-  } while (0)
 
 /**
  * @brief Reports the error location.
