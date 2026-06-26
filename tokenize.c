@@ -108,7 +108,7 @@ bool at_eof(struct Token **token_ptr) {
 struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr,
                         char *str) {
   CHECK(cur_ptr != nullptr && *cur_ptr != nullptr && str != nullptr);
-  struct Token *tok = (struct Token *)calloc(1, sizeof(struct Token));
+  struct Token *tok = calloc(1, sizeof(*tok));
   CHECK(tok != nullptr);
   tok->kind = kind;
   tok->str = str;
