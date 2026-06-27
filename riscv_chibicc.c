@@ -2,30 +2,29 @@
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
+#include "codegen.h"
+#include "parse.h"
 #include "tokenize.h"
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
+  if (argc != 2)
     error("Invalid number of arguments.");
-    return 1;
-  }
 
   struct Token *token = tokenize(argv[1]);
+  struct Node *node = expr(&token);
 
   printf(".globl main\n");
   printf("main:\n");
-  printf("    li a0,%d\n", seek_if_expect_number(&token));
 
-  while (!at_eof(&token)) {
-    if (consume(&token, '+')) {
-      printf("    addi a0,a0,%d\n", seek_if_expect_number(&token));
-      continue;
-    }
+  // Traverse the AST to emit assembly.
+  gen(node);
 
-    seek_if_expect(&token, '-');
-    printf("    addi a0,a0,-%d\n", seek_if_expect_number(&token));
-  }
-
+  /*
+   * A result must be at the 't0' register, so pop it to 'a0' register to make
+   * it a program exit code.
+   */
+  printf("    lw a0, 0(sp)\n");
+  printf("    addi sp, sp, 8\n");
   printf("    ret\n");
   return 0;
 }
