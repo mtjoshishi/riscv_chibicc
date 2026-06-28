@@ -35,12 +35,13 @@ static void error_tok(struct Token *token, char *fmt, ...) {
  * @brief If the next token is expected character, consume the token and
  * return true. Otherwise, returns false.
  * @param token_ptr The pointer of a token to be consumed.
- * @param op Expected character.
+ * @param op Expected string.
  * @return boolean
  */
-bool consume(struct Token **token_ptr, char op) {
+bool consume(struct Token **token_ptr, char *op) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
-  if ((*token_ptr)->kind != TK_RESERVED || (*token_ptr)->str[0] != op)
+  if ((*token_ptr)->kind != TK_RESERVED || strlen(op) != (*token_ptr)->len ||
+      memcmp((*token_ptr)->str, op, (*token_ptr)->len))
     return false;
   *token_ptr = (*token_ptr)->next;
   return true;
@@ -49,11 +50,12 @@ bool consume(struct Token **token_ptr, char op) {
 /**
  * @brief Seek the token if the expected character.
  * @param token_ptr The pointer of a token to seek.
- * @param op Expected character.
+ * @param op Expected string.
  */
-void seek_if_expect(struct Token **token_ptr, char op) {
+void seek_if_expect(struct Token **token_ptr, char *op) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
-  if ((*token_ptr)->kind != TK_RESERVED || (*token_ptr)->str[0] != op)
+  if ((*token_ptr)->kind != TK_RESERVED || strlen(op) != (*token_ptr)->len ||
+      memcmp((*token_ptr)->str, op, (*token_ptr)->len))
     error_tok(*token_ptr, "Expected '%c'", op);
   *token_ptr = (*token_ptr)->next;
 }
@@ -88,17 +90,30 @@ bool at_eof(struct Token **token_ptr) {
  * @param kind The kind of token.
  * @param cur_ptr The pointer of the current token.
  * @param str The input string to be tokenize.
+ * @param len The length of string for specified token.
  * @return The pointer of new token.
  */
-struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr,
-                        char *str) {
+struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr, char *str,
+                        size_t len) {
   CHECK(cur_ptr != nullptr && *cur_ptr != nullptr && str != nullptr);
   struct Token *tok = calloc(1, sizeof(*tok));
   CHECK(tok != nullptr);
   tok->kind = kind;
   tok->str = str;
+  tok->len = len;
   (*cur_ptr)->next = tok;
   return tok;
+}
+
+/**
+ * @brief Checks whether the input string (*p) begins with the specified string
+ * (*q).
+ * @param *p The input string.
+ * @param *q The string that serves as the prefix for `*p`.
+ * @return bool If `*p` begins with `*p`, returns true.
+ */
+static bool startswith(const char *p, const char *q) {
+  return memcmp(p, q, strlen(q)) == 0;
 }
 
 struct Token *tokenize(char *input) {
@@ -115,15 +130,26 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
-    if (strchr("+-*/()", *p)) {
-      cur = new_token(TK_RESERVED, &cur, p++);
+    if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
+        startswith(p, ">=")) {
+      cur = new_token(TK_RESERVED, &cur, p, 2);
+      p += 2;
+      cur->source_input = input;
+      continue;
+    }
+
+    if (strchr("+-*/()<>", *p)) {
+      cur = new_token(TK_RESERVED, &cur, p, 1);
+      p++;
       cur->source_input = input;
       continue;
     }
 
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, &cur, p);
+      cur = new_token(TK_NUM, &cur, p, 0);
+      char *q = p;
       cur->val = (int)strtol(p, &p, 10);
+      cur->len = (size_t)(p - q);
       cur->source_input = input;
       continue;
     }
@@ -131,7 +157,7 @@ struct Token *tokenize(char *input) {
     error_tok(cur, "Invalid token.");
   }
 
-  cur = new_token(TK_EOF, &cur, p);
+  cur = new_token(TK_EOF, &cur, p, 0);
   cur->source_input = input;
   return head.next;
 }

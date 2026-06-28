@@ -40,6 +40,28 @@ void gen(struct Node *node) {
   case NODE_DIV:
     printf("    divw t0, t0, t1\n");
     break;
+  case NODE_EQ:
+    printf("    subw t0, t0, t1\n");
+    // Equals 'sltiu t0, t0, 1'. 'SLT' = Set less than
+    printf("    seqz t0, t0\n");
+    break;
+  case NODE_NE:
+    printf("    subw t0, t0, t1\n");
+    // Equals 'sltu t0, x0, t0'.
+    printf("    snez t0, t0\n");
+    break;
+  case NODE_LT:
+    printf("    slt t0, t0, t1\n");
+    break;
+  case NODE_LE:
+    /*
+     * 'lhs <= rhs' means 'not lhs > rhs'. So firstly, check 'lhs > rhs is
+     * true?' using 'sgt'.
+     */
+    printf("    sgt t0, t0, t1\n");
+    // And, 'lhs > rhs' is false, zero will be set in 't0'.
+    printf("    seqz t0, t0\n");
+    break;
   default:
     break;
   }

@@ -45,22 +45,78 @@ struct Node *new_num(int value) {
   return node;
 }
 
+static struct Node *equality(struct Token **token);
+static struct Node *relational(struct Token **token);
+static struct Node *add(struct Token **token);
 static struct Node *mul(struct Token **token);
+static struct Node *unary(struct Token **token);
 static struct Node *primary(struct Token **token);
 
 /**
- * @brief expr = mul ("+" mul | "-" mul)*
+ * @brief expr = equality
  * @param **token Tokenized source code.
- * @return Node for `expr`.
+ * @return Node for `equality`.
  */
 struct Node *expr(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  return equality(token);
+}
+
+/**
+ * @brief equality = relational ("==" relational | "!=" relational)*
+ * @param **token Tokenized source code.
+ * @return Node for `equality`.
+ */
+struct Node *equality(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = relational(token);
+
+  for (;;) {
+    if (consume(token, "=="))
+      node = new_binary(NODE_EQ, node, relational(token));
+    else if (consume(token, "!="))
+      node = new_binary(NODE_NE, node, relational(token));
+    else
+      return node;
+  }
+}
+
+/**
+ * @brief relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+ * @param **token Tokenized source code.
+ * @return Node for `add`.
+ */
+struct Node *relational(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = add(token);
+
+  for (;;) {
+    if (consume(token, "<"))
+      node = new_binary(NODE_LT, node, add(token));
+    else if (consume(token, "<="))
+      node = new_binary(NODE_LE, node, add(token));
+    else if (consume(token, ">"))
+      node = new_binary(NODE_LT, add(token), node);
+    else if (consume(token, ">="))
+      node = new_binary(NODE_LE, add(token), node);
+    else
+      return node;
+  }
+}
+
+/**
+ * @brief add = mul ("+" mul | "-" mul)*
+ * @param **token Tokenized source code.
+ * @return Node for `mul`.
+ */
+struct Node *add(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = mul(token);
 
   for (;;) {
-    if (consume(token, '+'))
+    if (consume(token, "+"))
       node = new_binary(NODE_ADD, node, mul(token));
-    else if (consume(token, '-'))
+    else if (consume(token, "-"))
       node = new_binary(NODE_SUB, node, mul(token));
     else
       return node;
@@ -68,35 +124,49 @@ struct Node *expr(struct Token **token) {
 }
 
 /**
- * @brief mul = primary ("*" primary | "/" primary)
+ * @brief mul = unary ("*" unary | "/" unary)
  * @param **token Tokenized source code.
  * @return Node for `mul`.
  */
 static struct Node *mul(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Node *node = primary(token);
+  struct Node *node = unary(token);
 
   for (;;) {
-    if (consume(token, '*'))
-      node = new_binary(NODE_MUL, node, primary(token));
-    else if (consume(token, '/'))
-      node = new_binary(NODE_DIV, node, primary(token));
+    if (consume(token, "*"))
+      node = new_binary(NODE_MUL, node, unary(token));
+    else if (consume(token, "/"))
+      node = new_binary(NODE_DIV, node, unary(token));
     else
       return node;
   }
 }
 
 /**
+ * @brief unary = ("+" | "-")? primary
+ * @param **token Tokenized source code.
+ * @return Finally returns node for `primary`.
+ */
+static struct Node *unary(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  if (consume(token, "+"))
+    return unary(token);
+  if (consume(token, "-"))
+    return new_binary(NODE_SUB, new_num(0), unary(token));
+  return primary(token);
+}
+
+/**
  * @brief primary = num | "(" expr ")"
  * @param **token Tokenized source code.
- * @return Node for `primary`.
+ * @return Either value node or node for `expr`.
  */
 static struct Node *primary(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
 
-  if (consume(token, '(')) {
+  if (consume(token, "(")) {
     struct Node *node = expr(token);
-    seek_if_expect(token, ')');
+    seek_if_expect(token, ")");
     return node;
   }
 

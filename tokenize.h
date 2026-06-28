@@ -5,11 +5,12 @@
 
 #include "chibicc_types.h"
 
-bool consume(struct Token **token_ptr, char op);
-void seek_if_expect(struct Token **token_ptr, char op);
+bool consume(struct Token **token_ptr, char *op);
+void seek_if_expect(struct Token **token_ptr, char *op);
 int seek_if_expect_number(struct Token **token_ptr);
 bool at_eof(struct Token **token_ptr);
-struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr, char *str);
+struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr, char *str,
+                        size_t len);
 struct Token *tokenize(char *p);
 
 #endif // TOKENIZE_H_
