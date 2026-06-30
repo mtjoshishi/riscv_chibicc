@@ -9,7 +9,7 @@
  * @brief Generate assembly codes by traversing the AST.
  * @param node Parsed nodes of AST.
  */
-void gen(struct Node *node) {
+static void gen(struct Node *node) {
   CHECK(node != nullptr);
 
   if (node->kind == NODE_NUM) {
@@ -69,4 +69,18 @@ void gen(struct Node *node) {
   // Push the temporary calculated results into t0 register.
   printf("    addi sp, sp, -8\n");
   printf("    sd t0, 0(sp)\n");
+}
+
+void codegen(struct Node *node) {
+  printf(".globl main\n");
+  printf("main:\n");
+
+  // Traverse the AST to emit assembly.
+  for (struct Node *n = node; n; n = n->next) {
+    gen(n);
+    printf("    lw a0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+  }
+
+  printf("    ret\n");
 }
