@@ -15,16 +15,16 @@ void gen(struct Node *node) {
   if (node->kind == NODE_NUM) {
     printf("    addi sp, sp, -8\n");
     printf("    li t0, %d\n", node->val);
-    printf("    sd t0, 0(sp)\n");
+    printf("    sw t0, 0(sp)\n");
     return;
   }
 
   gen(node->lhs);
   gen(node->rhs);
 
-  printf("    ld t1, 0(sp)\n");
+  printf("    lw t1, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
-  printf("    ld t0, 0(sp)\n");
+  printf("    lw t0, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
 
   switch (node->kind) {
