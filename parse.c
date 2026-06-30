@@ -45,6 +45,8 @@ struct Node *new_num(int value) {
   return node;
 }
 
+static struct Node *stmt(struct Token **token);
+static struct Node *expr(struct Token **token);
 static struct Node *equality(struct Token **token);
 static struct Node *relational(struct Token **token);
 static struct Node *add(struct Token **token);
@@ -53,11 +55,42 @@ static struct Node *unary(struct Token **token);
 static struct Node *primary(struct Token **token);
 
 /**
+ * @brief program = stmt*
+ * @param token Tokenized source codes.
+ * @return Node of `program`.
+ */
+struct Node *program(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node head = {};
+  head.next = nullptr;
+  struct Node *cur = &head;
+
+  while (!at_eof(token)) {
+    cur->next = stmt(token);
+    CHECK(cur->next != nullptr);
+    cur = cur->next;
+  }
+  return head.next;
+}
+
+/**
+ * @brief stmt = expr ";"
+ * @param token Tokenized source codes.
+ * @return Node of `stmt`.
+ */
+static struct Node *stmt(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = expr(token);
+  seek_if_expect(token, ";");
+  return node;
+}
+
+/**
  * @brief expr = equality
  * @param **token Tokenized source code.
  * @return Node for `equality`.
  */
-struct Node *expr(struct Token **token) {
+static struct Node *expr(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   return equality(token);
 }
@@ -67,7 +100,7 @@ struct Node *expr(struct Token **token) {
  * @param **token Tokenized source code.
  * @return Node for `equality`.
  */
-struct Node *equality(struct Token **token) {
+static struct Node *equality(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = relational(token);
 
@@ -86,7 +119,7 @@ struct Node *equality(struct Token **token) {
  * @param **token Tokenized source code.
  * @return Node for `add`.
  */
-struct Node *relational(struct Token **token) {
+static struct Node *relational(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = add(token);
 
@@ -109,7 +142,7 @@ struct Node *relational(struct Token **token) {
  * @param **token Tokenized source code.
  * @return Node for `mul`.
  */
-struct Node *add(struct Token **token) {
+static struct Node *add(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = mul(token);
 

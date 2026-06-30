@@ -37,6 +37,7 @@ enum NodeKind {
 // Node for AST
 struct Node {
   enum NodeKind kind; // Type of node.
+  struct Node *next;  // Next node.
   struct Node *lhs;   // Left hand side statement
   struct Node *rhs;   // Right hand side statement
   int val;            // Value if kind is NODE_NUM
