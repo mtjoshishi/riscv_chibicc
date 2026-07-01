@@ -6,6 +6,7 @@
 // Kind of token
 enum TokenKind {
   TK_RESERVED, // Reserved word
+  TK_IDENT,    // Identifier
   TK_NUM,      // Numeric token
   TK_EOF,      // End of file
 };
@@ -23,15 +24,17 @@ struct Token {
 
 // Kind of node for AST
 enum NodeKind {
-  NODE_ADD, // '+'
-  NODE_SUB, // '-'
-  NODE_MUL, // '*'
-  NODE_DIV, // '/'
-  NODE_EQ,  // ==
-  NODE_NE,  // !=
-  NODE_LT,  // <
-  NODE_LE,  // <=
-  NODE_NUM, // number
+  NODE_ADD,    // '+'
+  NODE_SUB,    // '-'
+  NODE_MUL,    // '*'
+  NODE_DIV,    // '/'
+  NODE_EQ,     // ==
+  NODE_NE,     // !=
+  NODE_LT,     // <
+  NODE_LE,     // <=
+  NODE_ASSIGN, // =
+  NODE_LVAR,   // Local variable
+  NODE_NUM,    // number
 };
 
 // Node for AST
@@ -40,6 +43,7 @@ struct Node {
   struct Node *next;  // Next node.
   struct Node *lhs;   // Left hand side statement
   struct Node *rhs;   // Right hand side statement
+  char name;          // Name of variable. Use if kind is NODE_LVAR.
   int val;            // Value if kind is NODE_NUM
 };
 

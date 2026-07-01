@@ -45,8 +45,20 @@ struct Node *new_num(int value) {
   return node;
 }
 
+/**
+ * @brief Create new local variable node.
+ * @param name The name of local variable.
+ * @return New 'NODE_LVAR' node.
+ */
+struct Node *new_lvar(char name) {
+  struct Node *node = new_node(NODE_LVAR);
+  node->name = name;
+  return node;
+}
+
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
+static struct Node *assign(struct Token **token);
 static struct Node *equality(struct Token **token);
 static struct Node *relational(struct Token **token);
 static struct Node *add(struct Token **token);
@@ -86,13 +98,21 @@ static struct Node *stmt(struct Token **token) {
 }
 
 /**
- * @brief expr = equality
+ * @brief expr = assign
  * @param **token Tokenized source code.
- * @return Node for `equality`.
+ * @return Node for `expr`.
  */
 static struct Node *expr(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  return equality(token);
+  return assign(token);
+}
+
+static struct Node *assign(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = equality(token);
+  if (consume(token, "="))
+    node = new_binary(NODE_ASSIGN, node, assign(token));
+  return node;
 }
 
 /**
@@ -190,7 +210,7 @@ static struct Node *unary(struct Token **token) {
 }
 
 /**
- * @brief primary = num | "(" expr ")"
+ * @brief primary = num | ident | "(" expr ")"
  * @param **token Tokenized source code.
  * @return Either value node or node for `expr`.
  */
@@ -202,6 +222,10 @@ static struct Node *primary(struct Token **token) {
     seek_if_expect(token, ")");
     return node;
   }
+
+  struct Token *tok = consume_ident(token);
+  if (tok != nullptr)
+    return new_lvar(*tok->str);
 
   return new_num(seek_if_expect_number(token));
 }

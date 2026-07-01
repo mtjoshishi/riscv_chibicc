@@ -5,6 +5,60 @@
 #include "chibicc_error.h"
 #include "chibicc_types.h"
 
+/// @brief Generate local variable into the stack.
+static void gen_addr(struct Node *node) {
+  CHECK(node != nullptr);
+  if (node->kind != NODE_LVAR)
+    error("Not an lvalue.");
+  int offset = (node->name - 'a' + 1) * 8;
+  printf("    addi t0, fp, -%d\n", offset);
+  printf("    addi sp, sp, -8\n");
+  printf("    sd t0, 0(sp)\n");
+}
+
+/// @brief Load the value from the stack.
+static void load() {
+  // Pop the address of the top, read the value, and assign to 't0'.
+  printf("    ld t0, 0(sp)\n");
+  printf("    addi sp, sp, 8\n");
+  // Pop the address of the top, read the value, and assign to 't1'.
+  printf("    ld t1, 0(t0)\n");
+  // Push the read value at 't1' to stack.
+  printf("    addi sp, sp, -8\n");
+  printf("    sd t1, 0(sp)\n");
+}
+
+/// @brief Store the data onto the stack.
+static void store() {
+  // Pop the rvalue from the top of stack.
+  printf("    ld t1, 0(sp)\n");
+  printf("    addi sp, sp, 8\n");
+  // Pop the lvalue from the top of stack.
+  printf("    ld t0, 0(sp)\n");
+  printf("    addi sp, sp, 8\n");
+  // Assign the value of 't1' into the address of 't0'
+  printf("    sd t1, 0(t0)\n");
+  // Push the value of 't1'
+  printf("    addi sp, sp, -8\n");
+  printf("    sd t1, 0(sp)\n");
+}
+
+static void prologue() {
+  // Comply IALIGN=16 boundary.
+  printf("    addi sp, sp, -16\n");
+  printf("    sd fp, 0(sp)\n");
+  printf("    addi fp, sp, 16\n");
+  printf("    addi sp, sp, -208\n");
+}
+
+static void epilogue() {
+  // Release the region of local variables (208 bytes).
+  printf("    addi sp, fp, 208\n");
+  printf("    ld fp, 0(sp)\n");
+  printf("    addi sp, sp, 16\n");
+  printf("    ret\n");
+}
+
 /**
  * @brief Generate assembly codes by traversing the AST.
  * @param node Parsed nodes of AST.
@@ -12,41 +66,53 @@
 static void gen(struct Node *node) {
   CHECK(node != nullptr);
 
-  if (node->kind == NODE_NUM) {
-    printf("    addi sp, sp, -8\n");
+  switch (node->kind) {
+  case NODE_NUM:
     printf("    li t0, %d\n", node->val);
-    printf("    sw t0, 0(sp)\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
     return;
+  case NODE_LVAR:
+    gen_addr(node);
+    load();
+    return;
+  case NODE_ASSIGN:
+    gen_addr(node->lhs);
+    gen(node->rhs);
+    store();
+    return;
+  default:
+    break;
   }
 
   gen(node->lhs);
   gen(node->rhs);
 
-  printf("    lw t1, 0(sp)\n");
+  printf("    ld t1, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
-  printf("    lw t0, 0(sp)\n");
+  printf("    ld t0, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
 
   switch (node->kind) {
   case NODE_ADD:
-    printf("    addw t0, t0, t1\n");
+    printf("    add t0, t0, t1\n");
     break;
   case NODE_SUB:
-    printf("    subw t0, t0, t1\n");
+    printf("    sub t0, t0, t1\n");
     break;
   case NODE_MUL:
-    printf("    mulw t0, t0, t1\n");
+    printf("    mul t0, t0, t1\n");
     break;
   case NODE_DIV:
-    printf("    divw t0, t0, t1\n");
+    printf("    div t0, t0, t1\n");
     break;
   case NODE_EQ:
-    printf("    subw t0, t0, t1\n");
+    printf("    sub t0, t0, t1\n");
     // Equals 'sltiu t0, t0, 1'. 'SLT' = Set less than
     printf("    seqz t0, t0\n");
     break;
   case NODE_NE:
-    printf("    subw t0, t0, t1\n");
+    printf("    sub t0, t0, t1\n");
     // Equals 'sltu t0, x0, t0'.
     printf("    snez t0, t0\n");
     break;
@@ -75,12 +141,14 @@ void codegen(struct Node *node) {
   printf(".globl main\n");
   printf("main:\n");
 
+  prologue();
+
   // Traverse the AST to emit assembly.
   for (struct Node *n = node; n; n = n->next) {
     gen(n);
-    printf("    lw a0, 0(sp)\n");
+    printf("    ld a0, 0(sp)\n");
     printf("    addi sp, sp, 8\n");
   }
 
-  printf("    ret\n");
+  epilogue();
 }

@@ -48,6 +48,21 @@ bool consume(struct Token **token_ptr, char *op) {
 }
 
 /**
+ * @brief Consumes the current token if it is an identifier.
+ * @param token_ptr The pointer of a token to be consumed.
+ * @return The current token.
+ * @note The given pointer of token will be sought.
+ */
+struct Token *consume_ident(struct Token **token_ptr) {
+  CHECK(token_ptr != nullptr && *token_ptr != nullptr);
+  if ((*token_ptr)->kind != TK_IDENT)
+    return nullptr;
+  struct Token *current = *token_ptr;
+  *token_ptr = (*token_ptr)->next;
+  return current;
+}
+
+/**
  * @brief Seek the token if the expected character.
  * @param token_ptr The pointer of a token to seek.
  * @param op Expected string.
@@ -138,8 +153,16 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
-    if (strchr("+-*/()<>;", *p)) {
+    if (strchr("+-*/()<>;=", *p)) {
       cur = new_token(TK_RESERVED, &cur, p, 1);
+      p++;
+      cur->source_input = input;
+      continue;
+    }
+
+    // Identifier
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, &cur, p, 1);
       p++;
       cur->source_input = input;
       continue;

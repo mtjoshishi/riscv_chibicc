@@ -6,6 +6,7 @@
 #include "chibicc_types.h"
 
 bool consume(struct Token **token_ptr, char *op);
+struct Token *consume_ident(struct Token **token_ptr);
 void seek_if_expect(struct Token **token_ptr, char *op);
 int seek_if_expect_number(struct Token **token_ptr);
 bool at_eof(struct Token **token_ptr);
