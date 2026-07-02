@@ -161,6 +161,10 @@ void codegen(struct Program *prog) {
   // Emit the code
   for (struct Node *n = prog->node; n; n = n->next) {
     gen(n);
+
+    if (n->kind == NODE_RETURN)
+      continue;
+
     printf("    ld a0, 0(sp)\n");
     printf("    addi sp, sp, 8\n");
   }
