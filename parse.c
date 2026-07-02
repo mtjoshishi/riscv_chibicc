@@ -47,6 +47,19 @@ struct Node *new_binary(enum NodeKind node_kind, struct Node *lhs,
 }
 
 /**
+ * @brief Create unary node.
+ *  @param node_kind Kind of node.
+ *  @param[in] expr Expression
+ *  @return New unary node.
+ */
+struct Node *new_unary(enum NodeKind node_kind, struct Node *expr) {
+  CHECK(expr != nullptr);
+  struct Node *node = new_node(node_kind);
+  node->lhs = expr;
+  return node;
+}
+
+/**
  * @brief Create numerical value node.
  * @param value
  * @return New numerical value node.
@@ -115,12 +128,19 @@ struct Program *program(struct Token **token) {
 }
 
 /**
- * @brief stmt = expr ";"
+ * @brief stmt = expr ";" | "return" expr ";"
  * @param token Tokenized source codes.
  * @return Node of `stmt`.
  */
 static struct Node *stmt(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
+
+  if (consume(token, "return")) {
+    struct Node *node = new_unary(NODE_RETURN, expr(token));
+    seek_if_expect(token, ";");
+    return node;
+  }
+
   struct Node *node = expr(token);
   seek_if_expect(token, ";");
   return node;

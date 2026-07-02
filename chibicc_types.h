@@ -33,6 +33,7 @@ enum NodeKind {
   NODE_LT,     // <
   NODE_LE,     // <=
   NODE_ASSIGN, // =
+  NODE_RETURN, // "return"
   NODE_VAR,    // Variable
   NODE_NUM,    // number
 };

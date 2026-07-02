@@ -52,6 +52,7 @@ static void prologue() {
 }
 
 static void epilogue() {
+  printf(".Lreturn:\n");
   // Release the region of local variables (208 bytes).
   printf("    addi sp, fp, 208\n");
   printf("    ld fp, 0(sp)\n");
@@ -80,6 +81,12 @@ static void gen(struct Node *node) {
     gen_addr(node->lhs);
     gen(node->rhs);
     store();
+    return;
+  case NODE_RETURN:
+    gen(node->lhs);
+    printf("    ld a0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    j .Lreturn\n");
     return;
   default:
     break;
