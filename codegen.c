@@ -43,18 +43,25 @@ static void store() {
   printf("    sd t1, 0(sp)\n");
 }
 
-static void prologue() {
+/**
+ * @brief Export prologue.
+ * @param stack_size The size of stack to push down for the local variables.
+ */
+static void prologue(int stack_size) {
   // Comply IALIGN=16 boundary.
   printf("    addi sp, sp, -16\n");
   printf("    sd fp, 0(sp)\n");
   printf("    addi fp, sp, 16\n");
-  printf("    addi sp, sp, -208\n");
+  printf("    addi sp, sp, -%d\n", stack_size);
 }
 
-static void epilogue() {
+/**
+ * @brief Export epilogue.
+ * @param stack_size The size of stack to push down for the local variables.
+ */
+static void epilogue(int stack_size) {
   printf(".Lreturn:\n");
-  // Release the region of local variables (208 bytes).
-  printf("    addi sp, fp, 208\n");
+  printf("    addi sp, fp, %d\n", stack_size);
   printf("    ld fp, 0(sp)\n");
   printf("    addi sp, sp, 16\n");
   printf("    ret\n");
@@ -149,7 +156,7 @@ void codegen(struct Program *prog) {
   printf(".globl main\n");
   printf("main:\n");
 
-  prologue();
+  prologue(prog->stack_size);
 
   // Emit the code
   for (struct Node *n = prog->node; n; n = n->next) {
@@ -158,5 +165,5 @@ void codegen(struct Program *prog) {
     printf("    addi sp, sp, 8\n");
   }
 
-  epilogue();
+  epilogue(prog->stack_size);
 }
