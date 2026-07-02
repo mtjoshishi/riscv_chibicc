@@ -8,9 +8,9 @@
 /// @brief Generate local variable into the stack.
 static void gen_addr(struct Node *node) {
   CHECK(node != nullptr);
-  if (node->kind != NODE_LVAR)
+  if (node->kind != NODE_VAR)
     error("Not an lvalue.");
-  int offset = (node->name - 'a' + 1) * 8;
+  int offset = node->var->offset;
   printf("    addi t0, fp, -%d\n", offset);
   printf("    addi sp, sp, -8\n");
   printf("    sd t0, 0(sp)\n");
@@ -72,7 +72,7 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     return;
-  case NODE_LVAR:
+  case NODE_VAR:
     gen_addr(node);
     load();
     return;
@@ -137,14 +137,15 @@ static void gen(struct Node *node) {
   printf("    sd t0, 0(sp)\n");
 }
 
-void codegen(struct Node *node) {
+void codegen(struct Program *prog) {
+  CHECK(prog != nullptr);
   printf(".globl main\n");
   printf("main:\n");
 
   prologue();
 
-  // Traverse the AST to emit assembly.
-  for (struct Node *n = node; n; n = n->next) {
+  // Emit the code
+  for (struct Node *n = prog->node; n; n = n->next) {
     gen(n);
     printf("    ld a0, 0(sp)\n");
     printf("    addi sp, sp, 8\n");

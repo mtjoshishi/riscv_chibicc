@@ -1,10 +1,22 @@
 #include "parse.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
 #include "tokenize.h"
+
+struct Var *locals;
+
+struct Var *find_var(struct Token *token) {
+  CHECK(token != nullptr);
+  for (struct Var *var = locals; var; var = var->next)
+    if (strlen(var->name) == token->len &&
+        !memcmp(token->str, var->name, var->len))
+      return var;
+  return nullptr;
+}
 
 /**
  * @brief Create new node instance.
@@ -46,14 +58,25 @@ struct Node *new_num(int value) {
 }
 
 /**
- * @brief Create new local variable node.
+ * @brief Create new variable node.
  * @param name The name of local variable.
  * @return New 'NODE_LVAR' node.
  */
-struct Node *new_lvar(char name) {
-  struct Node *node = new_node(NODE_LVAR);
-  node->name = name;
+struct Node *new_var(struct Var *var) {
+  CHECK(var != nullptr);
+  struct Node *node = new_node(NODE_VAR);
+  node->var = var;
   return node;
+}
+
+struct Var *push_var(char *name) {
+  struct Var *var = calloc(1, sizeof(*var));
+  CHECK(var != nullptr);
+
+  var->next = locals;
+  var->name = name;
+  locals = var;
+  return var;
 }
 
 static struct Node *stmt(struct Token **token);
@@ -71,8 +94,10 @@ static struct Node *primary(struct Token **token);
  * @param token Tokenized source codes.
  * @return Node of `program`.
  */
-struct Node *program(struct Token **token) {
+struct Program *program(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
+  locals = nullptr;
+
   struct Node head = {};
   head.next = nullptr;
   struct Node *cur = &head;
@@ -82,7 +107,11 @@ struct Node *program(struct Token **token) {
     CHECK(cur->next != nullptr);
     cur = cur->next;
   }
-  return head.next;
+
+  struct Program *prog = calloc(1, sizeof(*prog));
+  prog->node = head.next;
+  prog->locals = locals;
+  return prog;
 }
 
 /**
@@ -224,8 +253,12 @@ static struct Node *primary(struct Token **token) {
   }
 
   struct Token *tok = consume_ident(token);
-  if (tok != nullptr)
-    return new_lvar(*tok->str);
+  if (tok != nullptr) {
+    struct Var *var = find_var(tok);
+    if (var == nullptr)
+      var = push_var(strndup(tok->str, tok->len));
+    return new_var(var);
+  }
 
   return new_num(seek_if_expect_number(token));
 }

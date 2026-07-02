@@ -33,8 +33,16 @@ enum NodeKind {
   NODE_LT,     // <
   NODE_LE,     // <=
   NODE_ASSIGN, // =
-  NODE_LVAR,   // Local variable
+  NODE_VAR,    // Variable
   NODE_NUM,    // number
+};
+
+// Variable
+struct Var {
+  struct Var *next; // Next variable
+  char *name;       // Name of variable
+  size_t len;       // Length of variable name
+  int offset;       // Offset of the stack from the frame pointer.
 };
 
 // Node for AST
@@ -43,8 +51,15 @@ struct Node {
   struct Node *next;  // Next node.
   struct Node *lhs;   // Left hand side statement
   struct Node *rhs;   // Right hand side statement
-  char name;          // Name of variable. Use if kind is NODE_LVAR.
+  struct Var *var;    // Object of variable. Use if kind is NODE_VAR.
   int val;            // Value if kind is NODE_NUM
+};
+
+// Program
+struct Program {
+  struct Node *node;
+  struct Var *locals;
+  int stack_size;
 };
 
 #endif // CHIBICC_TYPES_H_

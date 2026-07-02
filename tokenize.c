@@ -131,6 +131,12 @@ static bool startswith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
 }
 
+static bool is_alpha(char c) {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+}
+
+static bool is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
+
 struct Token *tokenize(char *input) {
   CHECK(input != nullptr);
   char *p = input;
@@ -161,9 +167,12 @@ struct Token *tokenize(char *input) {
     }
 
     // Identifier
-    if ('a' <= *p && *p <= 'z') {
-      cur = new_token(TK_IDENT, &cur, p, 1);
+    if (is_alpha(*p)) {
+      char *q = p;
       p++;
+      while (is_alnum(*p))
+        p++;
+      cur = new_token(TK_IDENT, &cur, q, (size_t)(p - q));
       cur->source_input = input;
       continue;
     }

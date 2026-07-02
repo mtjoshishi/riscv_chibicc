@@ -3,6 +3,6 @@
 
 #include "chibicc_types.h"
 
-void codegen(struct Node *node);
+void codegen(struct Program *program);
 
 #endif // CODEGEN_H_
