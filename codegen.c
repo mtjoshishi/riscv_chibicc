@@ -119,6 +119,18 @@ static void gen(struct Node *node) {
     }
     return;
   }
+  case NODE_WHILE: {
+    long seq = labelseq++;
+    printf(".Lbegin%ld:\n", seq);
+    gen(node->cond);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    beqz t0, .Lend%ld\n", seq);
+    gen(node->then);
+    printf("    j .Lbegin%ld\n", seq);
+    printf(".Lend%ld:\n", seq);
+    return;
+  }
   case NODE_RETURN:
     gen(node->lhs);
     printf("    ld a0, 0(sp)\n");

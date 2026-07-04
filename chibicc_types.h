@@ -34,6 +34,7 @@ enum NodeKind {
   NODE_LE,     // <=
   NODE_ASSIGN, // =
   NODE_IF,     // "if"
+  NODE_WHILE,  // "while"
   NODE_RETURN, // "return"
   NODE_VAR,    // Variable
   NODE_NUM,    // number

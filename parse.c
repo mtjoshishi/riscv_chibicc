@@ -152,6 +152,18 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
+  if (consume(token, "while")) {
+    struct Node *node = new_node(NODE_WHILE);
+    CHECK(node != nullptr);
+
+    seek_if_expect(token, "(");
+    node->cond = expr(token);
+    seek_if_expect(token, ")");
+    node->then = stmt(token);
+
+    return node;
+  }
+
   if (consume(token, "return")) {
     struct Node *node = new_unary(NODE_RETURN, expr(token));
     seek_if_expect(token, ";");

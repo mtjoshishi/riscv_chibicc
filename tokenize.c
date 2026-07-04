@@ -141,7 +141,7 @@ static bool is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
  */
 static char *starts_with_reserved_keyword(const char *p) {
   // Reserved keyword in C.
-  static char *kw[] = {"return", "if", "else"};
+  static char *kw[] = {"return", "if", "else", "while"};
 
   for (size_t i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     size_t reserved_kw_len = strlen(kw[i]);
