@@ -127,6 +127,11 @@ struct Program *program(struct Token **token) {
   return prog;
 }
 
+static struct Node *read_expr_stmt(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  return new_unary(NODE_EXPR_STMT, expr(token));
+}
+
 /**
  * @brief stmt = expr ";"
  *             | "if" "(" expr ")" stmt ("else" stmt)?
@@ -172,7 +177,7 @@ static struct Node *stmt(struct Token **token) {
 
     seek_if_expect(token, "(");
     if (!consume(token, ";")) {
-      node->init = expr(token);
+      node->init = read_expr_stmt(token);
       seek_if_expect(token, ";");
     }
 
@@ -182,7 +187,7 @@ static struct Node *stmt(struct Token **token) {
     }
 
     if (!consume(token, ")")) {
-      node->increment = expr(token);
+      node->increment = read_expr_stmt(token);
       seek_if_expect(token, ")");
     }
     node->then = stmt(token);
@@ -196,7 +201,7 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
-  struct Node *node = expr(token);
+  struct Node *node = read_expr_stmt(token);
   seek_if_expect(token, ";");
   return node;
 }

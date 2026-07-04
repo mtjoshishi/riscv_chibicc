@@ -24,21 +24,22 @@ struct Token {
 
 // Kind of node for AST
 enum NodeKind {
-  NODE_ADD,    // '+'
-  NODE_SUB,    // '-'
-  NODE_MUL,    // '*'
-  NODE_DIV,    // '/'
-  NODE_EQ,     // ==
-  NODE_NE,     // !=
-  NODE_LT,     // <
-  NODE_LE,     // <=
-  NODE_ASSIGN, // =
-  NODE_IF,     // "if"
-  NODE_WHILE,  // "while"
-  NODE_FOR,    // "for"
-  NODE_RETURN, // "return"
-  NODE_VAR,    // Variable
-  NODE_NUM,    // number
+  NODE_ADD,       // '+'
+  NODE_SUB,       // '-'
+  NODE_MUL,       // '*'
+  NODE_DIV,       // '/'
+  NODE_EQ,        // ==
+  NODE_NE,        // !=
+  NODE_LT,        // <
+  NODE_LE,        // <=
+  NODE_ASSIGN,    // =
+  NODE_IF,        // "if"
+  NODE_WHILE,     // "while"
+  NODE_FOR,       // "for"
+  NODE_RETURN,    // "return"
+  NODE_EXPR_STMT, // Expression statement to handle void-expression.
+  NODE_VAR,       // Variable
+  NODE_NUM,       // number
 };
 
 // Variable

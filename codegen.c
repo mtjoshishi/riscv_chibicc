@@ -83,6 +83,12 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     return;
+  case NODE_EXPR_STMT:
+    gen(node->lhs);
+    // Removed the evaluated result in progress from the top of stack.
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    return;
   case NODE_VAR:
     gen_addr(node);
     load();
@@ -134,11 +140,9 @@ static void gen(struct Node *node) {
   case NODE_FOR: {
     long seq = labelseq++;
 
-    if ((node->init) != nullptr) {
+    if ((node->init) != nullptr)
       gen(node->init);
-      printf("    ld t0, 0(sp)\n");
-      printf("    addi sp, sp, 8\n");
-    }
+
     printf(".Lbegin%ld:\n", seq);
 
     if ((node->cond) != nullptr) {
@@ -148,14 +152,11 @@ static void gen(struct Node *node) {
       printf("    beqz t0, .Lend%ld\n", seq);
     }
 
-    CHECK(node->then != nullptr);
     gen(node->then);
 
-    if ((node->increment) != nullptr) {
+    if ((node->increment) != nullptr)
       gen(node->increment);
-      printf("    ld t0, 0(sp)\n");
-      printf("    addi sp, sp, 8\n");
-    }
+
     printf("    j .Lbegin%ld\n", seq);
     printf(".Lend%ld:\n", seq);
     return;
@@ -232,12 +233,6 @@ void codegen(struct Program *prog) {
   // Emit the code
   for (struct Node *n = prog->node; n; n = n->next) {
     gen(n);
-
-    if (n->kind == NODE_RETURN)
-      continue;
-
-    printf("    ld a0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
   }
 
   epilogue(prog->stack_size);
