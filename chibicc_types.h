@@ -36,6 +36,7 @@ enum NodeKind {
   NODE_IF,        // "if"
   NODE_WHILE,     // "while"
   NODE_FOR,       // "for"
+  NODE_BLOCK,     // { ... }
   NODE_RETURN,    // "return"
   NODE_EXPR_STMT, // Expression statement to handle void-expression.
   NODE_VAR,       // Variable
@@ -63,6 +64,9 @@ struct Node {
   struct Node *els;       // Else statement
   struct Node *init;      // Initial condition for "for".
   struct Node *increment; // Increment expression for "for".
+
+  // Block
+  struct Node *body;
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   int val;         // Value if kind is NODE_NUM

@@ -134,6 +134,7 @@ static struct Node *read_expr_stmt(struct Token **token) {
 
 /**
  * @brief stmt = expr ";"
+ *             | "{" stmt "}"
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" expr? ";" expr? ";" expr ";" )" stmt
@@ -198,6 +199,21 @@ static struct Node *stmt(struct Token **token) {
   if (consume(token, "return")) {
     struct Node *node = new_unary(NODE_RETURN, expr(token));
     seek_if_expect(token, ";");
+    return node;
+  }
+
+  if (consume(token, "{")) {
+    struct Node head = {};
+    head.next = nullptr;
+    struct Node *cur = &head;
+
+    while (!consume(token, "}")) {
+      cur->next = stmt(token);
+      cur = cur->next;
+    }
+
+    struct Node *node = new_node(NODE_BLOCK);
+    node->body = head.next;
     return node;
   }
 

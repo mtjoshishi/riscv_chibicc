@@ -161,6 +161,10 @@ static void gen(struct Node *node) {
     printf(".Lend%ld:\n", seq);
     return;
   }
+  case NODE_BLOCK:
+    for (struct Node *n = node->body; n; n = n->next)
+      gen(n);
+    return;
   case NODE_RETURN:
     gen(node->lhs);
     printf("    ld a0, 0(sp)\n");
