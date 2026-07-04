@@ -131,6 +131,35 @@ static void gen(struct Node *node) {
     printf(".Lend%ld:\n", seq);
     return;
   }
+  case NODE_FOR: {
+    long seq = labelseq++;
+
+    if ((node->init) != nullptr) {
+      gen(node->init);
+      printf("    ld t0, 0(sp)\n");
+      printf("    addi sp, sp, 8\n");
+    }
+    printf(".Lbegin%ld:\n", seq);
+
+    if ((node->cond) != nullptr) {
+      gen(node->cond);
+      printf("    ld t0, 0(sp)\n");
+      printf("    addi sp, sp, 8\n");
+      printf("    beqz t0, .Lend%ld\n", seq);
+    }
+
+    CHECK(node->then != nullptr);
+    gen(node->then);
+
+    if ((node->increment) != nullptr) {
+      gen(node->increment);
+      printf("    ld t0, 0(sp)\n");
+      printf("    addi sp, sp, 8\n");
+    }
+    printf("    j .Lbegin%ld\n", seq);
+    printf(".Lend%ld:\n", seq);
+    return;
+  }
   case NODE_RETURN:
     gen(node->lhs);
     printf("    ld a0, 0(sp)\n");

@@ -35,6 +35,7 @@ enum NodeKind {
   NODE_ASSIGN, // =
   NODE_IF,     // "if"
   NODE_WHILE,  // "while"
+  NODE_FOR,    // "for"
   NODE_RETURN, // "return"
   NODE_VAR,    // Variable
   NODE_NUM,    // number
@@ -55,10 +56,12 @@ struct Node {
   struct Node *lhs;   // Left hand side statement
   struct Node *rhs;   // Right hand side statement
 
-  // "if" statement
-  struct Node *cond; // Condition expression
-  struct Node *then; // Statement then "if"
-  struct Node *els;  // Else statement
+  // "if", "while", or "for" statement
+  struct Node *cond;      // Condition expression
+  struct Node *then;      // Statement then "if", "while", and "for"
+  struct Node *els;       // Else statement
+  struct Node *init;      // Initial condition for "for".
+  struct Node *increment; // Increment expression for "for".
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   int val;         // Value if kind is NODE_NUM

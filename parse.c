@@ -130,6 +130,8 @@ struct Program *program(struct Token **token) {
 /**
  * @brief stmt = expr ";"
  *             | "if" "(" expr ")" stmt ("else" stmt)?
+ *             | "while" "(" expr ")" stmt
+ *             | "for" "(" expr? ";" expr? ";" expr ";" )" stmt
  *             | "return" expr ";"
  * @param token Tokenized source codes.
  * @return Node of `stmt`.
@@ -159,6 +161,30 @@ static struct Node *stmt(struct Token **token) {
     seek_if_expect(token, "(");
     node->cond = expr(token);
     seek_if_expect(token, ")");
+    node->then = stmt(token);
+
+    return node;
+  }
+
+  if (consume(token, "for")) {
+    struct Node *node = new_node(NODE_FOR);
+    CHECK(node != nullptr);
+
+    seek_if_expect(token, "(");
+    if (!consume(token, ";")) {
+      node->init = expr(token);
+      seek_if_expect(token, ";");
+    }
+
+    if (!consume(token, ";")) {
+      node->cond = expr(token);
+      seek_if_expect(token, ";");
+    }
+
+    if (!consume(token, ")")) {
+      node->increment = expr(token);
+      seek_if_expect(token, ")");
+    }
     node->then = stmt(token);
 
     return node;
