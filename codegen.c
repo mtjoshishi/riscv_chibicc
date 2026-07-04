@@ -5,6 +5,9 @@
 #include "chibicc_error.h"
 #include "chibicc_types.h"
 
+// The number of label to go to the end of selection statement.
+long labelseq = 0;
+
 /// @brief Generate local variable into the stack.
 static void gen_addr(struct Node *node) {
   CHECK(node != nullptr);
@@ -89,6 +92,33 @@ static void gen(struct Node *node) {
     gen(node->rhs);
     store();
     return;
+  case NODE_IF: {
+    long seq = labelseq++;
+    /*
+     * KEEP IN MIND!
+     * The evaluation result of the conditional statement is stored in 't0',
+     * and is set to zero if the conditional statement is true.
+     */
+    if (node->els != nullptr) {
+      gen(node->cond);
+      printf("    ld t0, 0(sp)\n");
+      printf("    addi sp, sp, 8\n");
+      printf("    beqz t0, .Lelse%ld\n", seq);
+      gen(node->then);
+      printf("    j .Lend%ld\n", seq);
+      printf(".Lelse%ld:\n", seq);
+      gen(node->els);
+      printf(".Lend%ld:\n", seq);
+    } else {
+      gen(node->cond);
+      printf("    ld t0, 0(sp)\n");
+      printf("    addi sp, sp, 8\n");
+      printf("    beqz t0, .Lend%ld\n", seq);
+      gen(node->then);
+      printf(".Lend%ld:\n", seq);
+    }
+    return;
+  }
   case NODE_RETURN:
     gen(node->lhs);
     printf("    ld a0, 0(sp)\n");

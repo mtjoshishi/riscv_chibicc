@@ -33,6 +33,7 @@ enum NodeKind {
   NODE_LT,     // <
   NODE_LE,     // <=
   NODE_ASSIGN, // =
+  NODE_IF,     // "if"
   NODE_RETURN, // "return"
   NODE_VAR,    // Variable
   NODE_NUM,    // number
@@ -52,8 +53,14 @@ struct Node {
   struct Node *next;  // Next node.
   struct Node *lhs;   // Left hand side statement
   struct Node *rhs;   // Right hand side statement
-  struct Var *var;    // Object of variable. Use if kind is NODE_VAR.
-  int val;            // Value if kind is NODE_NUM
+
+  // "if" statement
+  struct Node *cond; // Condition expression
+  struct Node *then; // Statement then "if"
+  struct Node *els;  // Else statement
+
+  struct Var *var; // Object of variable. Use if kind is NODE_VAR.
+  int val;         // Value if kind is NODE_NUM
 };
 
 // Program

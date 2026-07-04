@@ -128,12 +128,29 @@ struct Program *program(struct Token **token) {
 }
 
 /**
- * @brief stmt = expr ";" | "return" expr ";"
+ * @brief stmt = expr ";"
+ *             | "if" "(" expr ")" stmt ("else" stmt)?
+ *             | "return" expr ";"
  * @param token Tokenized source codes.
  * @return Node of `stmt`.
  */
 static struct Node *stmt(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
+
+  if (consume(token, "if")) {
+    struct Node *node = new_node(NODE_IF);
+    CHECK(node != nullptr);
+
+    seek_if_expect(token, "(");
+    node->cond = expr(token);
+    seek_if_expect(token, ")");
+    node->then = stmt(token);
+
+    if (consume(token, "else"))
+      node->els = stmt(token);
+
+    return node;
+  }
 
   if (consume(token, "return")) {
     struct Node *node = new_unary(NODE_RETURN, expr(token));

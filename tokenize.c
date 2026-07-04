@@ -137,6 +137,29 @@ static bool is_alpha(char c) {
 
 static bool is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
 
+/**
+ */
+static char *starts_with_reserved_keyword(const char *p) {
+  // Reserved keyword in C.
+  static char *kw[] = {"return", "if", "else"};
+
+  for (size_t i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
+    size_t reserved_kw_len = strlen(kw[i]);
+    if (startswith(p, kw[i]) && !is_alnum(p[reserved_kw_len]))
+      return kw[i];
+  }
+
+  // Multi-letter puctuator
+  static char *operators[] = {"==", "!=", "<=", ">="};
+
+  for (size_t i = 0; i < sizeof(operators) / sizeof(*operators); i++) {
+    if (startswith(p, operators[i]))
+      return operators[i];
+  }
+
+  return nullptr;
+}
+
 struct Token *tokenize(char *input) {
   CHECK(input != nullptr);
   char *p = input;
@@ -151,19 +174,13 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
-    // Reserved keywords
-    if (startswith(p, "return") && !is_alnum(p[6])) {
-      cur = new_token(TK_RESERVED, &cur, p, 6);
+    // Reserved keywords or multi-letter puctuator
+    char *kw = starts_with_reserved_keyword(p);
+    if (kw != nullptr) {
+      size_t len = strlen(kw);
+      cur = new_token(TK_RESERVED, &cur, p, len);
       cur->source_input = input;
-      p += 6;
-      continue;
-    }
-
-    if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
-        startswith(p, ">=")) {
-      cur = new_token(TK_RESERVED, &cur, p, 2);
-      p += 2;
-      cur->source_input = input;
+      p += len;
       continue;
     }
 
