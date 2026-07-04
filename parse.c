@@ -12,8 +12,7 @@ struct Var *locals;
 struct Var *find_var(struct Token *token) {
   CHECK(token != nullptr);
   for (struct Var *var = locals; var; var = var->next)
-    if (strlen(var->name) == token->len &&
-        !memcmp(token->str, var->name, var->len))
+    if (var->len == token->len && !memcmp(token->str, var->name, var->len))
       return var;
   return nullptr;
 }
@@ -88,6 +87,7 @@ struct Var *push_var(char *name) {
 
   var->next = locals;
   var->name = name;
+  var->len = strlen(name);
   locals = var;
   return var;
 }
