@@ -14,7 +14,7 @@ static void gen_addr(struct Node *node) {
   if (node->kind != NODE_VAR)
     error("Not an lvalue.");
   int offset = node->var->offset;
-  printf("    addi t0, fp, -%d\n", offset);
+  printf("    addi t0, fp, -%d\n", 16 + offset);
   printf("    addi sp, sp, -8\n");
   printf("    sd t0, 0(sp)\n");
 }
@@ -60,11 +60,10 @@ static void prologue(int stack_size) {
 
 /**
  * @brief Export epilogue.
- * @param stack_size The size of stack to push down for the local variables.
  */
-static void epilogue(int stack_size) {
+static void epilogue() {
   printf(".Lreturn:\n");
-  printf("    addi sp, fp, %d\n", stack_size);
+  printf("    addi sp, fp, -16\n");
   printf("    ld fp, 0(sp)\n");
   printf("    addi sp, sp, 16\n");
   printf("    ret\n");
@@ -239,5 +238,5 @@ void codegen(struct Program *prog) {
     gen(n);
   }
 
-  epilogue(prog->stack_size);
+  epilogue();
 }
