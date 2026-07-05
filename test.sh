@@ -2,12 +2,17 @@
 
 RISCV64_CC=riscv64-linux-gnu-gcc
 
+cat <<EOF | $RISCV64_CC -xc -c -o tmp2.o -
+int ret3() { return 3; }
+int ret5() { return 5; }
+EOF
+
 assert() {
   expected="$1"
   input="$2"
 
   ./riscv_chibicc "$input" > tmp.s || exit 1
-  $RISCV64_CC -static tmp.s -o tmp.elf || exit 1
+  $RISCV64_CC -static tmp.s tmp2.o -o tmp.elf || exit 1
 
   # Run on QEMU.
   qemu-riscv64 ./tmp.elf
@@ -72,5 +77,8 @@ assert 55 "i=0; j=0; while(i<=10) {j=i+j; i=i+1;} return j;"
 assert 10 "a=0; for (a = 0; a < 10; a = a + 1) a = a + 1; return a;"
 assert 3 "for (;;) return 3; return 5;"
 assert 55 "i=0; j=0; for (i=0; i<=10; i=i+1) j=i+j; return j;"
+
+assert 3 "return ret3();"
+assert 5 "return ret5();"
 
 echo OK

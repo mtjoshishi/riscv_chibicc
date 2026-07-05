@@ -335,7 +335,10 @@ static struct Node *unary(struct Token **token) {
 }
 
 /**
- * @brief primary = num | ident | "(" expr ")"
+ * @brief primary = num
+ *                | ident args?
+ *                | "(" expr ")"
+ *        args = "(" ")"
  * @param **token Tokenized source code.
  * @return Either value node or node for `expr`.
  */
@@ -350,6 +353,13 @@ static struct Node *primary(struct Token **token) {
 
   struct Token *tok = consume_ident(token);
   if (tok != nullptr) {
+    if (consume(token, "(")) {
+      seek_if_expect(token, ")");
+      struct Node *node = new_node(NODE_FUNC_CALL);
+      node->funcname = strndup(tok->str, tok->len);
+      return node;
+    }
+
     struct Var *var = find_var(tok);
     if (var == nullptr)
       var = push_var(strndup(tok->str, tok->len));

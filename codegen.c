@@ -53,6 +53,7 @@ static void store() {
 static void prologue(int stack_size) {
   // Comply IALIGN=16 boundary.
   printf("    addi sp, sp, -16\n");
+  printf("    sd ra, 8(sp)\n");
   printf("    sd fp, 0(sp)\n");
   printf("    addi fp, sp, 16\n");
   printf("    addi sp, sp, -%d\n", stack_size);
@@ -64,6 +65,7 @@ static void prologue(int stack_size) {
 static void epilogue() {
   printf(".Lreturn:\n");
   printf("    addi sp, fp, -16\n");
+  printf("    ld ra, 8(sp)\n");
   printf("    ld fp, 0(sp)\n");
   printf("    addi sp, sp, 16\n");
   printf("    ret\n");
@@ -163,6 +165,11 @@ static void gen(struct Node *node) {
   case NODE_BLOCK:
     for (struct Node *n = node->body; n; n = n->next)
       gen(n);
+    return;
+  case NODE_FUNC_CALL:
+    printf("    call %s\n", node->funcname);
+    printf("    addi sp, sp, -8\n");
+    printf("    sd a0, 0(sp)\n");
     return;
   case NODE_RETURN:
     gen(node->lhs);

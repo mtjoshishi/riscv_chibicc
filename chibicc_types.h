@@ -37,6 +37,7 @@ enum NodeKind {
   NODE_WHILE,     // "while"
   NODE_FOR,       // "for"
   NODE_BLOCK,     // { ... }
+  NODE_FUNC_CALL, // Function call (zero-arity)
   NODE_RETURN,    // "return"
   NODE_EXPR_STMT, // Expression statement to handle void-expression.
   NODE_VAR,       // Variable
@@ -67,6 +68,9 @@ struct Node {
 
   // Block
   struct Node *body;
+
+  // Name of calling function
+  char *funcname;
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   int val;         // Value if kind is NODE_NUM
