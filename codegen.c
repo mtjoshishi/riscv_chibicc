@@ -7,6 +7,8 @@
 
 // The number of label to go to the end of selection statement.
 long labelseq = 0;
+// Registers for the function arguments.
+char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5"};
 
 /// @brief Generate local variable into the stack.
 static void gen_addr(struct Node *node) {
@@ -166,11 +168,32 @@ static void gen(struct Node *node) {
     for (struct Node *n = node->body; n; n = n->next)
       gen(n);
     return;
-  case NODE_FUNC_CALL:
+  case NODE_FUNC_CALL: {
+    int args_cnt = 0;
+    for (struct Node *arg = node->args; arg != nullptr; arg = arg->next) {
+      gen(arg);
+      args_cnt += 1;
+    }
+
+    // Check whether the alignment is a multiple of 16 bytes.
+    bool xalign_chk = ((args_cnt * 8) % 16) == 0;
+    if (!xalign_chk)
+      printf("    addi sp, sp, -8\n");
+
+    for (int i = args_cnt - 1; i >= 0; i -= 1) {
+      printf("    ld %s, 0(sp)\n", argreg[i]);
+      printf("    addi sp, sp, 8\n");
+    }
+
     printf("    call %s\n", node->funcname);
+
+    if (!xalign_chk)
+      printf("    addi sp, sp, 8\n");
+
     printf("    addi sp, sp, -8\n");
     printf("    sd a0, 0(sp)\n");
     return;
+  }
   case NODE_RETURN:
     gen(node->lhs);
     printf("    ld a0, 0(sp)\n");

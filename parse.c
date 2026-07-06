@@ -25,6 +25,7 @@ struct Var *find_var(struct Token *token) {
 struct Node *new_node(enum NodeKind node_kind) {
   struct Node *node = calloc(1, sizeof(*node));
   CHECK(node != nullptr);
+  *node = (struct Node){};
   node->kind = node_kind;
   return node;
 }
@@ -232,6 +233,11 @@ static struct Node *expr(struct Token **token) {
   return assign(token);
 }
 
+/**
+ * @brief assign = equality ("=" assign)?
+ * @param[in] token Tokenized source code.
+ * @return Node for `assign`
+ */
 static struct Node *assign(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = equality(token);
@@ -334,9 +340,24 @@ static struct Node *unary(struct Token **token) {
   return primary(token);
 }
 
+static struct Node *func_args(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  if (consume(token, ")"))
+    return nullptr;
+
+  struct Node *head = assign(token);
+  struct Node *cur = head;
+  while (consume(token, ",")) {
+    cur->next = assign(token);
+    cur = cur->next;
+  }
+  seek_if_expect(token, ")");
+  return head;
+}
+
 /**
  * @brief primary = num
- *                | ident args?
+ *                | ident func-args?
  *                | "(" expr ")"
  *        args = "(" ")"
  * @param **token Tokenized source code.
@@ -354,9 +375,9 @@ static struct Node *primary(struct Token **token) {
   struct Token *tok = consume_ident(token);
   if (tok != nullptr) {
     if (consume(token, "(")) {
-      seek_if_expect(token, ")");
       struct Node *node = new_node(NODE_FUNC_CALL);
       node->funcname = strndup(tok->str, tok->len);
+      node->args = func_args(token);
       return node;
     }
 

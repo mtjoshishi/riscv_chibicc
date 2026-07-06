@@ -71,6 +71,7 @@ struct Node {
 
   // Name of calling function
   char *funcname;
+  struct Node *args;
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   int val;         // Value if kind is NODE_NUM
