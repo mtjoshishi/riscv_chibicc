@@ -177,21 +177,12 @@ static void gen(struct Node *node) {
       args_cnt += 1;
     }
 
-    // Check whether the alignment is a multiple of 16 bytes.
-    bool xalign_chk = ((args_cnt * 8) % 16) == 0;
-    if (!xalign_chk)
-      printf("    addi sp, sp, -8\n");
-
     for (int i = args_cnt - 1; i >= 0; i -= 1) {
       printf("    ld %s, 0(sp)\n", argreg[i]);
       printf("    addi sp, sp, 8\n");
     }
 
     printf("    call %s\n", node->funcname);
-
-    if (!xalign_chk)
-      printf("    addi sp, sp, 8\n");
-
     printf("    addi sp, sp, -8\n");
     printf("    sd a0, 0(sp)\n");
     return;
@@ -267,8 +258,16 @@ void codegen(struct Function *prog) {
 
     prologue(func->stack_size);
 
+    // Push arguments to the stack
+    int i = 0;
+    for (struct VarList *vl = func->params; vl != nullptr; vl = vl->next) {
+      struct Var *var = vl->var;
+      CHECK(var != nullptr);
+      printf("    sd %s, -%d(fp)\n", argreg[i++], 16 + var->offset);
+    }
+
     // Emit the code
-    for (struct Node *n = prog->node; n != nullptr; n = n->next)
+    for (struct Node *n = func->node; n != nullptr; n = n->next)
       gen(n);
 
     epilogue();

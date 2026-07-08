@@ -7,13 +7,16 @@
 #include "chibicc_types.h"
 #include "tokenize.h"
 
-struct Var *locals;
+struct VarList *locals;
 
 struct Var *find_var(struct Token *token) {
   CHECK(token != nullptr);
-  for (struct Var *var = locals; var; var = var->next)
+  for (struct VarList *vl = locals; vl != nullptr; vl = vl->next) {
+    struct Var *var = vl->var;
+    CHECK(var != nullptr);
     if (var->len == token->len && !memcmp(token->str, var->name, var->len))
       return var;
+  }
   return nullptr;
 }
 
@@ -85,11 +88,14 @@ struct Node *new_var(struct Var *var) {
 struct Var *push_var(char *name) {
   struct Var *var = calloc(1, sizeof(*var));
   CHECK(var != nullptr);
-
-  var->next = locals;
   var->name = name;
   var->len = strlen(name);
-  locals = var;
+
+  struct VarList *vl = calloc(1, sizeof(*vl));
+  CHECK(vl != nullptr);
+  vl->var = var;
+  vl->next = locals;
+  locals = vl;
   return var;
 }
 
@@ -123,7 +129,33 @@ struct Function *program(struct Token **token) {
 }
 
 /**
- * @brief function = ident "(" ")" "{" stmt* "}"
+ * @brief Returns function parameters as 'params'.
+ * @param[in] token Tokenized source code.
+ * @return Parameter list.
+ */
+static struct VarList *read_func_params(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  if (consume(token, ")"))
+    return nullptr;
+
+  struct VarList *head = calloc(1, sizeof(*head));
+  head->var = push_var(seek_if_expect_ident(token));
+  struct VarList *cur = head;
+
+  while (!consume(token, ")")) {
+    seek_if_expect(token, ",");
+    cur->next = calloc(1, sizeof(*(cur->next)));
+    CHECK(cur->next != nullptr);
+    cur->next->var = push_var(seek_if_expect_ident(token));
+    cur = cur->next;
+  }
+
+  return head;
+}
+
+/**
+ * @brief function = ident "(" params? ")" "{" stmt* "}"
+ *          params = ident ("," ident)*
  * @param[in] token Tokenized source code.
  * @return Node of 'function'.
  */
@@ -131,24 +163,22 @@ static struct Function *function(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   locals = nullptr;
 
-  char *func_name = seek_if_expect_ident(token);
+  struct Function *func = calloc(1, sizeof(*func));
+  CHECK(func != nullptr);
+  func->name = seek_if_expect_ident(token);
   seek_if_expect(token, "(");
-  seek_if_expect(token, ")");
+  func->params = read_func_params(token);
   seek_if_expect(token, "{");
 
   struct Node head = {};
   head.next = nullptr;
   struct Node *cur = &head;
-
   while (!consume(token, "}")) {
     cur->next = stmt(token);
     CHECK(cur->next != nullptr);
     cur = cur->next;
   }
 
-  struct Function *func = calloc(1, sizeof(*func));
-  CHECK(func != nullptr);
-  func->name = func_name;
   func->node = head.next;
   func->locals = locals;
   return func;

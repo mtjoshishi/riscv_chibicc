@@ -4,6 +4,9 @@
 #include "parse.h"
 #include "tokenize.h"
 
+#define ALIGN_TO(offset, align) (((offset) + (align) - 1) & ~((align) - 1))
+#define ALIGN_TO_16(offset) ALIGN_TO((offset), 16)
+
 int main(int argc, char **argv) {
   if (argc != 2)
     error("Invalid number of arguments.");
@@ -15,11 +18,11 @@ int main(int argc, char **argv) {
   // Assign offsets to local variables.
   for (struct Function *func = prog; func != nullptr; func = func->next) {
     int offset = 0;
-    for (struct Var *var = prog->locals; var; var = var->next) {
+    for (struct VarList *vl = func->locals; vl != nullptr; vl = vl->next) {
       offset += 8;
-      var->offset = offset;
+      vl->var->offset = offset;
     }
-    func->stack_size = offset;
+    func->stack_size = ALIGN_TO_16(offset);
   }
 
   codegen(prog);

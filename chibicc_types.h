@@ -46,10 +46,14 @@ enum NodeKind {
 
 // Variable
 struct Var {
-  struct Var *next; // Next variable
-  char *name;       // Name of variable
-  size_t len;       // Length of variable name
-  int offset;       // Offset of the stack from the frame pointer.
+  char *name; // Name of variable
+  size_t len; // Length of variable name
+  int offset; // Offset of the stack from the frame pointer.
+};
+
+struct VarList {
+  struct VarList *next;
+  struct Var *var;
 };
 
 // Node for AST
@@ -81,8 +85,10 @@ struct Node {
 struct Function {
   struct Function *next;
   char *name;
+  struct VarList *params;
+
   struct Node *node;
-  struct Var *locals;
+  struct VarList *locals;
   int stack_size;
 };
 

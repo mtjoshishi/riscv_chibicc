@@ -91,5 +91,8 @@ assert 15 "main() { return mul(3, 5); }"
 assert 21 "main() { return add6(1, 2, 3, 4, 5, 6); }"
 
 assert 32 "ret32() { return 32; } main() { return ret32(); }"
+assert 7 "add2(x, y) { return x + y; } main() { return add2(3, 4); }"
+assert 12 "mul2(x, y) { return x * y; } main() { return mul2(3, 4); }"
+assert 55 "fib(n) { if (n < 2) return n; else return fib(n-1) + fib(n-2); } main() { return fib(10); }"
 
 echo OK
