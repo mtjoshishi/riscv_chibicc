@@ -71,7 +71,7 @@ void seek_if_expect(struct Token **token_ptr, char *op) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   if ((*token_ptr)->kind != TK_RESERVED || strlen(op) != (*token_ptr)->len ||
       memcmp((*token_ptr)->str, op, (*token_ptr)->len))
-    error_tok(*token_ptr, "Expected '%c'", op);
+    error_tok(*token_ptr, "Expected '%s'", op);
   *token_ptr = (*token_ptr)->next;
 }
 
