@@ -76,6 +76,20 @@ void seek_if_expect(struct Token **token_ptr, char *op) {
 }
 
 /**
+ * @brief Seek the token if it's identifier.
+ * @param token_ptr The pointer of a token to seek.
+ * @return The name of identifier.
+ */
+char *seek_if_expect_ident(struct Token **token_ptr) {
+  CHECK(token_ptr != nullptr && *token_ptr != nullptr);
+  if ((*token_ptr)->kind != TK_IDENT)
+    error_tok(*token_ptr, "Expected an identifier.");
+  char *s = strndup((*token_ptr)->str, (*token_ptr)->len);
+  *token_ptr = (*token_ptr)->next;
+  return s;
+}
+
+/**
  * @brief Seek the token if the numeric value, and returns that numeric value.
  * Otherwise, raise the error.
  * @param token_ptr A token to seek. Expected as numeric value.

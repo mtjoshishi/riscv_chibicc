@@ -9,16 +9,18 @@ int main(int argc, char **argv) {
     error("Invalid number of arguments.");
 
   struct Token *token = tokenize(argv[1]);
-  struct Program *prog = program(&token);
+  struct Function *prog = program(&token);
   CHECK(prog != nullptr);
 
   // Assign offsets to local variables.
-  int offset = 0;
-  for (struct Var *var = prog->locals; var; var = var->next) {
-    offset += 8;
-    var->offset = offset;
+  for (struct Function *func = prog; func != nullptr; func = func->next) {
+    int offset = 0;
+    for (struct Var *var = prog->locals; var; var = var->next) {
+      offset += 8;
+      var->offset = offset;
+    }
+    func->stack_size = offset;
   }
-  prog->stack_size = offset;
 
   codegen(prog);
 

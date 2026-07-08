@@ -78,7 +78,9 @@ struct Node {
 };
 
 // Program
-struct Program {
+struct Function {
+  struct Function *next;
+  char *name;
   struct Node *node;
   struct Var *locals;
   int stack_size;

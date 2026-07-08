@@ -5,10 +5,12 @@
 #include "chibicc_error.h"
 #include "chibicc_types.h"
 
-// The number of label to go to the end of selection statement.
-long labelseq = 0;
 // Registers for the function arguments.
 char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5"};
+
+// The number of label to go to the end of selection statement.
+long labelseq = 0;
+char *func_name = "";
 
 /// @brief Generate local variable into the stack.
 static void gen_addr(struct Node *node) {
@@ -65,7 +67,7 @@ static void prologue(int stack_size) {
  * @brief Export epilogue.
  */
 static void epilogue() {
-  printf(".Lreturn:\n");
+  printf(".Lreturn.%s:\n", func_name);
   printf("    addi sp, fp, -16\n");
   printf("    ld ra, 8(sp)\n");
   printf("    ld fp, 0(sp)\n");
@@ -198,7 +200,7 @@ static void gen(struct Node *node) {
     gen(node->lhs);
     printf("    ld a0, 0(sp)\n");
     printf("    addi sp, sp, 8\n");
-    printf("    j .Lreturn\n");
+    printf("    j .Lreturn.%s\n", func_name);
     return;
   default:
     break;
@@ -256,17 +258,19 @@ static void gen(struct Node *node) {
   printf("    sd t0, 0(sp)\n");
 }
 
-void codegen(struct Program *prog) {
+void codegen(struct Function *prog) {
   CHECK(prog != nullptr);
-  printf(".globl main\n");
-  printf("main:\n");
+  for (struct Function *func = prog; func != nullptr; func = func->next) {
+    printf(".global %s\n", func->name);
+    printf("%s:\n", func->name);
+    func_name = func->name;
 
-  prologue(prog->stack_size);
+    prologue(func->stack_size);
 
-  // Emit the code
-  for (struct Node *n = prog->node; n; n = n->next) {
-    gen(n);
+    // Emit the code
+    for (struct Node *n = prog->node; n != nullptr; n = n->next)
+      gen(n);
+
+    epilogue();
   }
-
-  epilogue();
 }

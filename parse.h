@@ -3,6 +3,6 @@
 
 #include "chibicc_types.h"
 
-struct Program *program(struct Token **token);
+struct Function *program(struct Token **token);
 
 #endif // PARSE_H_

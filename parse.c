@@ -93,6 +93,7 @@ struct Var *push_var(char *name) {
   return var;
 }
 
+static struct Function *function(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
 static struct Node *assign(struct Token **token);
@@ -104,28 +105,53 @@ static struct Node *unary(struct Token **token);
 static struct Node *primary(struct Token **token);
 
 /**
- * @brief program = stmt*
+ * @brief program = function*
  * @param token Tokenized source codes.
  * @return Node of `program`.
  */
-struct Program *program(struct Token **token) {
+struct Function *program(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Function head = {};
+  head.next = nullptr;
+  struct Function *cur = &head;
+
+  while (!at_eof(token)) {
+    cur->next = function(token);
+    cur = cur->next;
+  }
+  return head.next;
+}
+
+/**
+ * @brief function = ident "(" ")" "{" stmt* "}"
+ * @param[in] token Tokenized source code.
+ * @return Node of 'function'.
+ */
+static struct Function *function(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   locals = nullptr;
+
+  char *func_name = seek_if_expect_ident(token);
+  seek_if_expect(token, "(");
+  seek_if_expect(token, ")");
+  seek_if_expect(token, "{");
 
   struct Node head = {};
   head.next = nullptr;
   struct Node *cur = &head;
 
-  while (!at_eof(token)) {
+  while (!consume(token, "}")) {
     cur->next = stmt(token);
     CHECK(cur->next != nullptr);
     cur = cur->next;
   }
 
-  struct Program *prog = calloc(1, sizeof(*prog));
-  prog->node = head.next;
-  prog->locals = locals;
-  return prog;
+  struct Function *func = calloc(1, sizeof(*func));
+  CHECK(func != nullptr);
+  func->name = func_name;
+  func->node = head.next;
+  func->locals = locals;
+  return func;
 }
 
 static struct Node *read_expr_stmt(struct Token **token) {
