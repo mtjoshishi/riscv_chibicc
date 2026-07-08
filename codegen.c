@@ -6,7 +6,7 @@
 #include "chibicc_types.h"
 
 // Registers for the function arguments.
-char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5"};
+char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
 
 // The number of label to go to the end of selection statement.
 long labelseq = 0;
