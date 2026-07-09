@@ -33,6 +33,8 @@ enum NodeKind {
   NODE_LT,        // <
   NODE_LE,        // <=
   NODE_ASSIGN,    // =
+  NODE_ADDR,      // unary '&'
+  NODE_DEREF,     // unary '*'
   NODE_IF,        // "if"
   NODE_WHILE,     // "while"
   NODE_FOR,       // "for"

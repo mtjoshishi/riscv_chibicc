@@ -12,15 +12,25 @@ char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
 long labelseq = 0;
 char *func_name = "";
 
+static void gen(struct Node *node);
+
 /// @brief Generate local variable into the stack.
 static void gen_addr(struct Node *node) {
   CHECK(node != nullptr);
-  if (node->kind != NODE_VAR)
-    error("Not an lvalue.");
-  int offset = node->var->offset;
-  printf("    addi t0, fp, -%d\n", 16 + offset);
-  printf("    addi sp, sp, -8\n");
-  printf("    sd t0, 0(sp)\n");
+  switch (node->kind) {
+  case NODE_VAR: {
+    int offset = node->var->offset;
+    printf("    addi t0, fp, -%d\n", 16 + offset);
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    return;
+  }
+  case NODE_DEREF:
+    gen(node->lhs);
+    return;
+  default:
+    error("Expected 'NODE_VAR' and 'NODE_DEREF' which are lvalue.");
+  }
 }
 
 /// @brief Load the value from the stack.
@@ -102,6 +112,13 @@ static void gen(struct Node *node) {
     gen_addr(node->lhs);
     gen(node->rhs);
     store();
+    return;
+  case NODE_ADDR:
+    gen_addr(node->lhs);
+    return;
+  case NODE_DEREF:
+    gen(node->lhs);
+    load();
     return;
   case NODE_IF: {
     long seq = labelseq++;

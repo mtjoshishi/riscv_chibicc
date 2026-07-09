@@ -95,4 +95,7 @@ assert 7 "add2(x, y) { return x + y; } main() { return add2(3, 4); }"
 assert 12 "mul2(x, y) { return x * y; } main() { return mul2(3, 4); }"
 assert 55 "fib(n) { if (n < 2) return n; else return fib(n-1) + fib(n-2); } main() { return fib(10); }"
 
+assert 3 "main() { x = 3; return *(&x); }"
+assert 3 "main() { x = 3; y = &x; z = &y; return **z; }"
+assert 5 "main() { x=3; y=&x; *y=5; return x; }"
 echo OK

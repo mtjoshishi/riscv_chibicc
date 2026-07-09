@@ -383,8 +383,9 @@ static struct Node *mul(struct Token **token) {
 }
 
 /**
- * @brief unary = ("+" | "-")? primary
- * @param **token Tokenized source code.
+ * @brief unary = ("+" | "-" | "&" | "*")? unary
+ *              | primary
+ * @param token Tokenized source code.
  * @return Finally returns node for `primary`.
  */
 static struct Node *unary(struct Token **token) {
@@ -393,6 +394,10 @@ static struct Node *unary(struct Token **token) {
     return unary(token);
   if (consume(token, "-"))
     return new_binary(NODE_SUB, new_num(0), unary(token));
+  if (consume(token, "&"))
+    return new_unary(NODE_ADDR, unary(token));
+  if (consume(token, "*"))
+    return new_unary(NODE_DEREF, unary(token));
   return primary(token);
 }
 
