@@ -44,21 +44,23 @@ enum NodeKind {
   NODE_EXPR_STMT, // Expression statement to handle void-expression.
   NODE_VAR,       // Variable
   NODE_NUM,       // number
+  NODE_NULL,      // Empty statement
 };
+
+struct Type;
 
 // Variable
 struct Var {
-  char *name; // Name of variable
-  size_t len; // Length of variable name
-  int offset; // Offset of the stack from the frame pointer.
+  char *name;      // Name of variable
+  size_t len;      // Length of variable name
+  struct Type *ty; // Type of variable
+  int offset;      // Offset of the stack from the frame pointer.
 };
 
 struct VarList {
   struct VarList *next;
   struct Var *var;
 };
-
-struct Type;
 
 // Node for AST
 struct Node {

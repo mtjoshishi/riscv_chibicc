@@ -12,6 +12,20 @@
 #include "chibicc_types.h"
 
 /**
+ * @brief Returns the current token if it matches a given string.
+ * @param token_ptr The pointer of a token.
+ * @param p Given string
+ * @return struct Token If matched, returns the corresponding token.
+ */
+struct Token *peek(struct Token **token_ptr, const char *p) {
+  CHECK(token_ptr != nullptr && *token_ptr != nullptr);
+  if ((*token_ptr)->kind != TK_RESERVED || strlen(p) != (*token_ptr)->len ||
+      memcmp((*token_ptr)->str, p, (*token_ptr)->len))
+    return nullptr;
+  return *token_ptr;
+}
+
+/**
  * @brief If the next token is expected character, consume the token and
  * return true. Otherwise, returns false.
  * @param token_ptr The pointer of a token to be consumed.
@@ -20,8 +34,8 @@
  */
 bool consume(struct Token **token_ptr, char *op) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
-  if ((*token_ptr)->kind != TK_RESERVED || strlen(op) != (*token_ptr)->len ||
-      memcmp((*token_ptr)->str, op, (*token_ptr)->len))
+  struct Token *token = peek(token_ptr, op);
+  if (token == nullptr)
     return false;
   *token_ptr = (*token_ptr)->next;
   return true;
@@ -45,13 +59,13 @@ struct Token *consume_ident(struct Token **token_ptr) {
 /**
  * @brief Seek the token if the expected character.
  * @param token_ptr The pointer of a token to seek.
- * @param op Expected string.
+ * @param s Expected string.
  */
-void seek_if_expect(struct Token **token_ptr, char *op) {
+void seek_if_expect(struct Token **token_ptr, char *s) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
-  if ((*token_ptr)->kind != TK_RESERVED || strlen(op) != (*token_ptr)->len ||
-      memcmp((*token_ptr)->str, op, (*token_ptr)->len))
-    error_tok(*token_ptr, "Expected '%s'", op);
+  struct Token *token = peek(token_ptr, s);
+  if (token == nullptr)
+    error_tok(token, "Expected '%s'", s);
   *token_ptr = (*token_ptr)->next;
 }
 
@@ -132,10 +146,13 @@ static bool is_alpha(char c) {
 static bool is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
 
 /**
+ * @brief Check whether given string is reserved keyword or not.
+ * @param p Input source code.
+ * @return char If matched with the reserved keyword, returns that keyword.
  */
 static char *starts_with_reserved_keyword(const char *p) {
   // Reserved keyword in C.
-  static char *kw[] = {"return", "if", "else", "while", "for"};
+  static char *kw[] = {"return", "if", "else", "while", "for", "int"};
 
   for (size_t i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     size_t reserved_kw_len = strlen(kw[i]);

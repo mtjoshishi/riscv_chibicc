@@ -5,6 +5,7 @@
 
 #include "chibicc_types.h"
 
+struct Token *peek(struct Token **token_ptr, const char *s);
 bool consume(struct Token **token_ptr, char *op);
 struct Token *consume_ident(struct Token **token_ptr);
 void seek_if_expect(struct Token **token_ptr, char *op);

@@ -6,6 +6,7 @@
 #include "chibicc_error.h"
 #include "chibicc_types.h"
 #include "tokenize.h"
+#include "type.h"
 
 struct VarList *locals;
 
@@ -94,11 +95,18 @@ struct Node *new_var(struct Var *var, struct Token *tok) {
   return node;
 }
 
-struct Var *push_var(char *name) {
+/**
+ * @brief Push the local variable to the 'VarList'.
+ * @param name The name of local variable.
+ * @param ty The type of local variable.
+ * @return Local variable object.
+ */
+struct Var *push_var(char *name, struct Type *ty) {
   struct Var *var = calloc(1, sizeof(*var));
   CHECK(var != nullptr);
   var->name = name;
   var->len = strlen(name);
+  var->ty = ty;
 
   struct VarList *vl = calloc(1, sizeof(*vl));
   CHECK(vl != nullptr);
@@ -109,6 +117,7 @@ struct Var *push_var(char *name) {
 }
 
 static struct Function *function(struct Token **token);
+static struct Node *declaration(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
 static struct Node *assign(struct Token **token);
@@ -137,6 +146,25 @@ struct Function *program(struct Token **token) {
   return head.next;
 }
 
+// @brief basetype = "int" "*"*
+static struct Type *basetype(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  seek_if_expect(token, "int");
+  struct Type *ty = int_type();
+  while (consume(token, "*"))
+    ty = pointer_to(ty);
+  return ty;
+}
+
+static struct VarList *read_func_param(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct VarList *vl = calloc(1, sizeof(*vl));
+  CHECK(vl != nullptr);
+  struct Type *ty = basetype(token);
+  vl->var = push_var(seek_if_expect_ident(token), ty);
+  return vl;
+}
+
 /**
  * @brief Returns function parameters as 'params'.
  * @param[in] token Tokenized source code.
@@ -147,15 +175,12 @@ static struct VarList *read_func_params(struct Token **token) {
   if (consume(token, ")"))
     return nullptr;
 
-  struct VarList *head = calloc(1, sizeof(*head));
-  head->var = push_var(seek_if_expect_ident(token));
+  struct VarList *head = read_func_param(token);
   struct VarList *cur = head;
 
   while (!consume(token, ")")) {
     seek_if_expect(token, ",");
-    cur->next = calloc(1, sizeof(*(cur->next)));
-    CHECK(cur->next != nullptr);
-    cur->next->var = push_var(seek_if_expect_ident(token));
+    cur->next = read_func_param(token);
     cur = cur->next;
   }
 
@@ -163,8 +188,9 @@ static struct VarList *read_func_params(struct Token **token) {
 }
 
 /**
- * @brief function = ident "(" params? ")" "{" stmt* "}"
- *          params = ident ("," ident)*
+ * @brief function = basetype ident "(" params? ")" "{" stmt* "}"
+ *          params = param ("," param)*
+ *           param = basetype ident
  * @param[in] token Tokenized source code.
  * @return Node of 'function'.
  */
@@ -174,6 +200,8 @@ static struct Function *function(struct Token **token) {
 
   struct Function *func = calloc(1, sizeof(*func));
   CHECK(func != nullptr);
+  // Seek the type of function. Now, ignore it.
+  basetype(token);
   func->name = seek_if_expect_ident(token);
   seek_if_expect(token, "(");
   func->params = read_func_params(token);
@@ -193,6 +221,24 @@ static struct Function *function(struct Token **token) {
   return func;
 }
 
+// @brief declaration = basetype ident ("=" expr) ";"
+static struct Node *declaration(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Token *tok = *token;
+  struct Type *ty = basetype(token);
+  struct Var *var = push_var(seek_if_expect_ident(token), ty);
+
+  if (consume(token, ";"))
+    return new_node(NODE_NULL, tok);
+
+  seek_if_expect(token, "=");
+  struct Node *lhs = new_var(var, tok);
+  struct Node *rhs = expr(token);
+  seek_if_expect(token, ";");
+  struct Node *node = new_binary(NODE_ASSIGN, lhs, rhs, tok);
+  return new_unary(NODE_EXPR_STMT, node, tok);
+}
+
 static struct Node *read_expr_stmt(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   return new_unary(NODE_EXPR_STMT, expr(token), *token);
@@ -204,6 +250,7 @@ static struct Node *read_expr_stmt(struct Token **token) {
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" expr? ";" expr? ";" expr ";" )" stmt
+ *             | declaration
  *             | "return" expr ";"
  * @param token Tokenized source codes.
  * @return Node of `stmt`.
@@ -282,6 +329,10 @@ static struct Node *stmt(struct Token **token) {
     node->body = head.next;
     return node;
   }
+
+  struct Token *tok = peek(token, "int");
+  if (tok != nullptr)
+    return declaration(token);
 
   struct Node *node = read_expr_stmt(token);
   seek_if_expect(token, ";");
@@ -453,7 +504,7 @@ static struct Node *primary(struct Token **token) {
 
     struct Var *var = find_var(tok);
     if (var == nullptr)
-      var = push_var(strndup(tok->str, tok->len));
+      error_tok(tok, "Undefined variable");
     return new_var(var, *token);
   }
 

@@ -94,6 +94,8 @@ static void gen(struct Node *node) {
   CHECK(node != nullptr);
 
   switch (node->kind) {
+  case NODE_NULL:
+    return;
   case NODE_NUM:
     printf("    li t0, %d\n", node->val);
     printf("    addi sp, sp, -8\n");
