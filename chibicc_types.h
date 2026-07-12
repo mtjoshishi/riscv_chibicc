@@ -58,12 +58,16 @@ struct VarList {
   struct Var *var;
 };
 
+struct Type;
+
 // Node for AST
 struct Node {
   enum NodeKind kind; // Type of node.
   struct Node *next;  // Next node.
-  struct Node *lhs;   // Left hand side statement
-  struct Node *rhs;   // Right hand side statement
+  struct Type *ty;    // Type, e.g. int or pointer int
+
+  struct Node *lhs; // Left hand side statement
+  struct Node *rhs; // Right hand side statement
 
   // "if", "while", or "for" statement
   struct Node *cond;      // Condition expression
@@ -81,6 +85,13 @@ struct Node {
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   int val;         // Value if kind is NODE_NUM
+};
+
+enum TypeKind { TYPE_INT, TYPE_PTR };
+
+struct Type {
+  enum TypeKind kind;
+  struct Type *base;
 };
 
 // Program

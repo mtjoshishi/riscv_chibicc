@@ -224,9 +224,13 @@ static void gen(struct Node *node) {
 
   switch (node->kind) {
   case NODE_ADD:
+    if (node->ty->kind == TYPE_PTR)
+      printf("    slli t1, t1, 3\n");
     printf("    add t0, t0, t1\n");
     break;
   case NODE_SUB:
+    if (node->ty->kind == TYPE_PTR)
+      printf("    slli t1, t1, 3\n");
     printf("    sub t0, t0, t1\n");
     break;
   case NODE_MUL:
