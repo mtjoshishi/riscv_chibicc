@@ -29,7 +29,8 @@ static void gen_addr(struct Node *node) {
     gen(node->lhs);
     return;
   default:
-    error("Expected 'NODE_VAR' and 'NODE_DEREF' which are lvalue.");
+    error_tok(node->tok,
+              "Expected 'NODE_VAR' and 'NODE_DEREF' which are lvalue.");
   }
 }
 

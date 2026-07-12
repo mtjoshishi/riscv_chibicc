@@ -1,7 +1,10 @@
 #ifndef CHIBICC_ERROR_H_
 #define CHIBICC_ERROR_H_
 
+#include "chibicc_types.h"
+
 void error(char *fmt, ...);
+void error_tok(struct Token *token, char *fmt, ...);
 
 #define CHECK(cond)                                                            \
   do {                                                                         \

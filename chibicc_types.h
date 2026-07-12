@@ -65,6 +65,7 @@ struct Node {
   enum NodeKind kind; // Type of node.
   struct Node *next;  // Next node.
   struct Type *ty;    // Type, e.g. int or pointer int
+  struct Token *tok;  // Representative token
 
   struct Node *lhs; // Left hand side statement
   struct Node *rhs; // Right hand side statement

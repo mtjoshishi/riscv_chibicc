@@ -23,13 +23,16 @@ struct Var *find_var(struct Token *token) {
 /**
  * @brief Create new node instance.
  * @param node_kind Kind of node.
+ * @param[in] tok Representative token.
  * @return Created new node.
  */
-struct Node *new_node(enum NodeKind node_kind) {
+struct Node *new_node(enum NodeKind node_kind, struct Token *tok) {
+  CHECK(tok != nullptr);
   struct Node *node = calloc(1, sizeof(*node));
   CHECK(node != nullptr);
   *node = (struct Node){};
   node->kind = node_kind;
+  node->tok = tok;
   return node;
 }
 
@@ -38,12 +41,13 @@ struct Node *new_node(enum NodeKind node_kind) {
  * @param node_kind Kind of node.
  * @param lhs Left hand side node of binary.
  * @param rhs Right hand side node of binary.
+ * @param[in] tok Representative token.
  * @return New binary node.
  */
 struct Node *new_binary(enum NodeKind node_kind, struct Node *lhs,
-                        struct Node *rhs) {
-  CHECK(lhs != nullptr && rhs != nullptr);
-  struct Node *node = new_node(node_kind);
+                        struct Node *rhs, struct Token *tok) {
+  CHECK(lhs != nullptr && rhs != nullptr && tok != nullptr);
+  struct Node *node = new_node(node_kind, tok);
   node->lhs = lhs;
   node->rhs = rhs;
   return node;
@@ -51,13 +55,15 @@ struct Node *new_binary(enum NodeKind node_kind, struct Node *lhs,
 
 /**
  * @brief Create unary node.
- *  @param node_kind Kind of node.
- *  @param[in] expr Expression
- *  @return New unary node.
+ * @param node_kind Kind of node.
+ * @param[in] expr Expression
+ * @param[in] tok Representative token.
+ * @return New unary node.
  */
-struct Node *new_unary(enum NodeKind node_kind, struct Node *expr) {
-  CHECK(expr != nullptr);
-  struct Node *node = new_node(node_kind);
+struct Node *new_unary(enum NodeKind node_kind, struct Node *expr,
+                       struct Token *tok) {
+  CHECK(expr != nullptr && tok != nullptr);
+  struct Node *node = new_node(node_kind, tok);
   node->lhs = expr;
   return node;
 }
@@ -65,10 +71,12 @@ struct Node *new_unary(enum NodeKind node_kind, struct Node *expr) {
 /**
  * @brief Create numerical value node.
  * @param value
+ * @param[in] tok Representative token.
  * @return New numerical value node.
  */
-struct Node *new_num(int value) {
-  struct Node *node = new_node(NODE_NUM);
+struct Node *new_num(int value, struct Token *tok) {
+  CHECK(tok != nullptr);
+  struct Node *node = new_node(NODE_NUM, tok);
   node->val = value;
   return node;
 }
@@ -76,11 +84,12 @@ struct Node *new_num(int value) {
 /**
  * @brief Create new variable node.
  * @param name The name of local variable.
+ * @param[in] tok Representative token.
  * @return New 'NODE_LVAR' node.
  */
-struct Node *new_var(struct Var *var) {
-  CHECK(var != nullptr);
-  struct Node *node = new_node(NODE_VAR);
+struct Node *new_var(struct Var *var, struct Token *tok) {
+  CHECK(var != nullptr && tok != nullptr);
+  struct Node *node = new_node(NODE_VAR, tok);
   node->var = var;
   return node;
 }
@@ -186,7 +195,7 @@ static struct Function *function(struct Token **token) {
 
 static struct Node *read_expr_stmt(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  return new_unary(NODE_EXPR_STMT, expr(token));
+  return new_unary(NODE_EXPR_STMT, expr(token), *token);
 }
 
 /**
@@ -203,7 +212,7 @@ static struct Node *stmt(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
 
   if (consume(token, "if")) {
-    struct Node *node = new_node(NODE_IF);
+    struct Node *node = new_node(NODE_IF, *token);
     CHECK(node != nullptr);
 
     seek_if_expect(token, "(");
@@ -218,7 +227,7 @@ static struct Node *stmt(struct Token **token) {
   }
 
   if (consume(token, "while")) {
-    struct Node *node = new_node(NODE_WHILE);
+    struct Node *node = new_node(NODE_WHILE, *token);
     CHECK(node != nullptr);
 
     seek_if_expect(token, "(");
@@ -230,7 +239,7 @@ static struct Node *stmt(struct Token **token) {
   }
 
   if (consume(token, "for")) {
-    struct Node *node = new_node(NODE_FOR);
+    struct Node *node = new_node(NODE_FOR, *token);
     CHECK(node != nullptr);
 
     seek_if_expect(token, "(");
@@ -254,7 +263,7 @@ static struct Node *stmt(struct Token **token) {
   }
 
   if (consume(token, "return")) {
-    struct Node *node = new_unary(NODE_RETURN, expr(token));
+    struct Node *node = new_unary(NODE_RETURN, expr(token), *token);
     seek_if_expect(token, ";");
     return node;
   }
@@ -269,7 +278,7 @@ static struct Node *stmt(struct Token **token) {
       cur = cur->next;
     }
 
-    struct Node *node = new_node(NODE_BLOCK);
+    struct Node *node = new_node(NODE_BLOCK, *token);
     node->body = head.next;
     return node;
   }
@@ -298,7 +307,7 @@ static struct Node *assign(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = equality(token);
   if (consume(token, "="))
-    node = new_binary(NODE_ASSIGN, node, assign(token));
+    node = new_binary(NODE_ASSIGN, node, assign(token), *token);
   return node;
 }
 
@@ -313,9 +322,9 @@ static struct Node *equality(struct Token **token) {
 
   for (;;) {
     if (consume(token, "=="))
-      node = new_binary(NODE_EQ, node, relational(token));
+      node = new_binary(NODE_EQ, node, relational(token), *token);
     else if (consume(token, "!="))
-      node = new_binary(NODE_NE, node, relational(token));
+      node = new_binary(NODE_NE, node, relational(token), *token);
     else
       return node;
   }
@@ -332,13 +341,13 @@ static struct Node *relational(struct Token **token) {
 
   for (;;) {
     if (consume(token, "<"))
-      node = new_binary(NODE_LT, node, add(token));
+      node = new_binary(NODE_LT, node, add(token), *token);
     else if (consume(token, "<="))
-      node = new_binary(NODE_LE, node, add(token));
+      node = new_binary(NODE_LE, node, add(token), *token);
     else if (consume(token, ">"))
-      node = new_binary(NODE_LT, add(token), node);
+      node = new_binary(NODE_LT, add(token), node, *token);
     else if (consume(token, ">="))
-      node = new_binary(NODE_LE, add(token), node);
+      node = new_binary(NODE_LE, add(token), node, *token);
     else
       return node;
   }
@@ -355,9 +364,9 @@ static struct Node *add(struct Token **token) {
 
   for (;;) {
     if (consume(token, "+"))
-      node = new_binary(NODE_ADD, node, mul(token));
+      node = new_binary(NODE_ADD, node, mul(token), *token);
     else if (consume(token, "-"))
-      node = new_binary(NODE_SUB, node, mul(token));
+      node = new_binary(NODE_SUB, node, mul(token), *token);
     else
       return node;
   }
@@ -374,9 +383,9 @@ static struct Node *mul(struct Token **token) {
 
   for (;;) {
     if (consume(token, "*"))
-      node = new_binary(NODE_MUL, node, unary(token));
+      node = new_binary(NODE_MUL, node, unary(token), *token);
     else if (consume(token, "/"))
-      node = new_binary(NODE_DIV, node, unary(token));
+      node = new_binary(NODE_DIV, node, unary(token), *token);
     else
       return node;
   }
@@ -393,11 +402,11 @@ static struct Node *unary(struct Token **token) {
   if (consume(token, "+"))
     return unary(token);
   if (consume(token, "-"))
-    return new_binary(NODE_SUB, new_num(0), unary(token));
+    return new_binary(NODE_SUB, new_num(0, *token), unary(token), *token);
   if (consume(token, "&"))
-    return new_unary(NODE_ADDR, unary(token));
+    return new_unary(NODE_ADDR, unary(token), *token);
   if (consume(token, "*"))
-    return new_unary(NODE_DEREF, unary(token));
+    return new_unary(NODE_DEREF, unary(token), *token);
   return primary(token);
 }
 
@@ -436,7 +445,7 @@ static struct Node *primary(struct Token **token) {
   struct Token *tok = consume_ident(token);
   if (tok != nullptr) {
     if (consume(token, "(")) {
-      struct Node *node = new_node(NODE_FUNC_CALL);
+      struct Node *node = new_node(NODE_FUNC_CALL, *token);
       node->funcname = strndup(tok->str, tok->len);
       node->args = func_args(token);
       return node;
@@ -445,8 +454,10 @@ static struct Node *primary(struct Token **token) {
     struct Var *var = find_var(tok);
     if (var == nullptr)
       var = push_var(strndup(tok->str, tok->len));
-    return new_var(var);
+    return new_var(var, *token);
   }
 
-  return new_num(seek_if_expect_number(token));
+  if ((*token)->kind != TK_NUM)
+    error_tok(*token, "Expected expression");
+  return new_num(seek_if_expect_number(token), *token);
 }
