@@ -478,6 +478,7 @@ static struct Node *func_args(struct Token **token) {
 
 /**
  * @brief primary = num
+ *                | "sizeof" unary
  *                | ident func-args?
  *                | "(" expr ")"
  *        args = "(" ")"
@@ -492,6 +493,9 @@ static struct Node *primary(struct Token **token) {
     seek_if_expect(token, ")");
     return node;
   }
+
+  if (consume(token, "sizeof"))
+    return new_unary(NODE_SIZEOF, unary(token), *token);
 
   struct Token *tok = consume_ident(token);
   if (tok != nullptr) {

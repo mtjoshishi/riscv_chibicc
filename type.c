@@ -22,6 +22,12 @@ struct Type *pointer_to(struct Type *base) {
   return ty;
 }
 
+int __size_of(struct Type *ty) {
+  CHECK(ty != nullptr);
+  CHECK(ty->kind == TYPE_INT || ty->kind == TYPE_PTR);
+  return 8;
+}
+
 static void visit(struct Node *node) {
   if (node == nullptr)
     return;
@@ -85,6 +91,12 @@ static void visit(struct Node *node) {
     if (node->lhs->ty->kind != TYPE_PTR)
       error_tok(node->tok, "Invalid pointer dereference.");
     node->ty = node->lhs->ty->base;
+    return;
+  case NODE_SIZEOF:
+    node->kind = NODE_NUM;
+    node->ty = int_type();
+    node->val = __size_of(node->lhs->ty);
+    node->lhs = nullptr;
     return;
   default:
     return;

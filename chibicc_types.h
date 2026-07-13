@@ -38,6 +38,7 @@ enum NodeKind {
   NODE_IF,        // "if"
   NODE_WHILE,     // "while"
   NODE_FOR,       // "for"
+  NODE_SIZEOF,    // "sizeof"
   NODE_BLOCK,     // { ... }
   NODE_FUNC_CALL, // Function call (zero-arity)
   NODE_RETURN,    // "return"
@@ -95,6 +96,7 @@ enum TypeKind { TYPE_INT, TYPE_PTR };
 struct Type {
   enum TypeKind kind;
   struct Type *base;
+  int byte_size;
 };
 
 // Program
