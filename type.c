@@ -5,25 +5,29 @@
 #include "chibicc_error.h"
 #include "chibicc_types.h"
 
-struct Type *int_type() {
+static struct Type *new_type(enum TypeKind kind) {
   struct Type *ty = calloc(1, sizeof(*ty));
   CHECK(ty != nullptr);
-  ty->kind = TYPE_INT;
+  ty->kind = kind;
   ty->base = nullptr;
   return ty;
 }
 
+struct Type *char_type() { return new_type(TYPE_CHAR); }
+
+struct Type *int_type() { return new_type(TYPE_INT); }
+
 struct Type *pointer_to(struct Type *base) {
   CHECK(base != nullptr);
-  struct Type *ty = calloc(1, sizeof(*ty));
-  CHECK(ty != nullptr);
-  ty->kind = TYPE_PTR;
+  struct Type *ty = new_type(TYPE_PTR);
   ty->base = base;
   return ty;
 }
 
 int __size_of(struct Type *ty) {
   CHECK(ty != nullptr);
+  if (ty->kind == TYPE_CHAR)
+    return 1;
   CHECK(ty->kind == TYPE_INT || ty->kind == TYPE_PTR);
   return 8;
 }

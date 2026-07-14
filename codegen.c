@@ -4,6 +4,7 @@
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
+#include "type.h"
 
 // Registers for the function arguments.
 char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
@@ -35,30 +36,42 @@ static void gen_addr(struct Node *node) {
 }
 
 /// @brief Load the value from the stack.
-static void load() {
-  // Pop the address of the top, read the value, and assign to 't0'.
+static void load(struct Type *ty) {
+  // Pop the address of the top and assign to 't0'.
   printf("    ld t0, 0(sp)\n");
-  printf("    addi sp, sp, 8\n");
-  // Pop the address of the top, read the value, and assign to 't1'.
-  printf("    ld t1, 0(t0)\n");
-  // Push the read value at 't1' to stack.
-  printf("    addi sp, sp, -8\n");
-  printf("    sd t1, 0(sp)\n");
+
+  // Read the value and assign to 't0'.
+  if (__size_of(ty) == 1)
+    printf("    lb t0, 0(t0)\n");
+  else
+    printf("    ld t0, 0(t0)\n");
+
+  // Push the read value at 't0' to stack.
+  printf("    sd t0, 0(sp)\n");
 }
 
 /// @brief Store the data onto the stack.
-static void store() {
+static void store(struct Type *ty) {
   // Pop the rvalue from the top of stack.
   printf("    ld t1, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
+
   // Pop the lvalue from the top of stack.
   printf("    ld t0, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
+
   // Assign the value of 't1' into the address of 't0'
-  printf("    sd t1, 0(t0)\n");
+  if (__size_of(ty) == 1)
+    printf("    sb t1, 0(t0)\n");
+  else
+    printf("    sd t1, 0(t0)\n");
+
   // Push the value of 't1'
   printf("    addi sp, sp, -8\n");
-  printf("    sd t1, 0(sp)\n");
+  if (__size_of(ty) == 1)
+    printf("    sb t1, 0(sp)\n");
+  else
+    printf("    sd t1, 0(sp)\n");
 }
 
 /**
@@ -109,19 +122,19 @@ static void gen(struct Node *node) {
     return;
   case NODE_VAR:
     gen_addr(node);
-    load();
+    load(node->ty);
     return;
   case NODE_ASSIGN:
     gen_addr(node->lhs);
     gen(node->rhs);
-    store();
+    store(node->ty);
     return;
   case NODE_ADDR:
     gen_addr(node->lhs);
     return;
   case NODE_DEREF:
     gen(node->lhs);
-    load();
+    load(node->ty);
     return;
   case NODE_IF: {
     long seq = labelseq++;
@@ -273,6 +286,16 @@ static void gen(struct Node *node) {
   printf("    sd t0, 0(sp)\n");
 }
 
+static void load_arg(struct Var *var, int idx) {
+  int sz = __size_of(var->ty);
+  if (sz == 1) {
+    printf("    sb %s, -%d(fp)\n", argreg[idx], 16 + var->offset);
+  } else {
+    CHECK(sz == 8);
+    printf("    sd %s, -%d(fp)\n", argreg[idx], 16 + var->offset);
+  }
+}
+
 void codegen(struct Function *prog) {
   CHECK(prog != nullptr);
   for (struct Function *func = prog; func != nullptr; func = func->next) {
@@ -284,11 +307,8 @@ void codegen(struct Function *prog) {
 
     // Push arguments to the stack
     int i = 0;
-    for (struct VarList *vl = func->params; vl != nullptr; vl = vl->next) {
-      struct Var *var = vl->var;
-      CHECK(var != nullptr);
-      printf("    sd %s, -%d(fp)\n", argreg[i++], 16 + var->offset);
-    }
+    for (struct VarList *vl = func->params; vl != nullptr; vl = vl->next)
+      load_arg(vl->var, i++);
 
     // Emit the code
     for (struct Node *n = func->node; n != nullptr; n = n->next)

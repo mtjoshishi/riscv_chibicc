@@ -108,4 +108,11 @@ assert 8 "int main() { int x = 0; return sizeof(x); }"
 assert 8 "int main() { return sizeof(1); }"
 assert 8 "int main() { int *x; return sizeof(x); }"
 
+assert 1 "int main() { char x = 1; return x; }"
+assert 1 "int main() { char x = 1; char y = 2; return x; }"
+assert 2 "int main() { char x = 1; char y = 2; return y; }"
+
+assert 1 "int main() { char x; return sizeof(x); }"
+assert 1 "int main() { return sub_char(7, 3, 3); } char sub_char(char a, char b, char c) { return a-b-c; }"
+
 echo OK

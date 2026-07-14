@@ -4,6 +4,7 @@
 
 #include "chibicc_types.h"
 
+struct Type *char_type();
 struct Type *int_type();
 struct Type *pointer_to(struct Type *base);
 int __size_of(struct Type *ty);

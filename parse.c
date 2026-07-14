@@ -146,11 +146,17 @@ struct Function *program(struct Token **token) {
   return head.next;
 }
 
-// @brief basetype = "int" "*"*
+// @brief basetype = ("char" | "int") "*"*
 static struct Type *basetype(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  seek_if_expect(token, "int");
-  struct Type *ty = int_type();
+  struct Type *ty = nullptr;
+  if (consume(token, "char")) {
+    ty = char_type();
+  } else {
+    seek_if_expect(token, "int");
+    ty = int_type();
+  }
+
   while (consume(token, "*"))
     ty = pointer_to(ty);
   return ty;
@@ -244,6 +250,10 @@ static struct Node *read_expr_stmt(struct Token **token) {
   return new_unary(NODE_EXPR_STMT, expr(token), *token);
 }
 
+static bool is_typename(struct Token **token) {
+  return peek(token, "char") || peek(token, "int");
+}
+
 /**
  * @brief stmt = expr ";"
  *             | "{" stmt "}"
@@ -330,8 +340,7 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
-  struct Token *tok = peek(token, "int");
-  if (tok != nullptr)
+  if (is_typename(token))
     return declaration(token);
 
   struct Node *node = read_expr_stmt(token);
