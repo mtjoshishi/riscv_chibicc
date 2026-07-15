@@ -55,7 +55,10 @@ struct Var {
   char *name;      // Name of variable
   size_t len;      // Length of variable name
   struct Type *ty; // Type of variable
-  int offset;      // Offset of the stack from the frame pointer.
+  bool is_local;   // Whether the scope is global or not.
+
+  // For local variables
+  int offset; // Offset of the stack from the frame pointer.
 };
 
 struct VarList {
@@ -109,6 +112,11 @@ struct Function {
   struct Node *node;
   struct VarList *locals;
   int stack_size;
+};
+
+struct Program {
+  struct VarList *globals;
+  struct Function *functions;
 };
 
 #endif // CHIBICC_TYPES_H_

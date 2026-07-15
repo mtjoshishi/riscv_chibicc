@@ -10,6 +10,6 @@ struct Type *pointer_to(struct Type *base);
 struct Type *array_of(struct Type *base, int size);
 int __size_of(struct Type *ty);
 
-void add_type(struct Function *prog);
+void add_type(struct Program *prog);
 
 #endif // TYPE_H_

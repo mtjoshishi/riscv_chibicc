@@ -13,12 +13,13 @@ int main(int argc, char **argv) {
     error("Invalid number of arguments.");
 
   struct Token *token = tokenize(argv[1]);
-  struct Function *prog = program(&token);
+  struct Program *prog = program(&token);
   CHECK(prog != nullptr);
   add_type(prog);
 
   // Assign offsets to local variables.
-  for (struct Function *func = prog; func != nullptr; func = func->next) {
+  for (struct Function *func = prog->functions; func != nullptr;
+       func = func->next) {
     int offset = 0;
     for (struct VarList *vl = func->locals; vl != nullptr; vl = vl->next) {
       struct Var *var = vl->var;

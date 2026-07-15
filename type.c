@@ -120,9 +120,10 @@ static void visit(struct Node *node) {
   }
 }
 
-void add_type(struct Function *prog) {
+void add_type(struct Program *prog) {
   CHECK(prog != nullptr);
-  for (struct Function *func = prog; func != nullptr; func = func->next) {
+  for (struct Function *func = prog->functions; func != nullptr;
+       func = func->next) {
     for (struct Node *n = func->node; n != nullptr; n = n->next)
       visit(n);
   }

@@ -20,8 +20,11 @@ static void gen_addr(struct Node *node) {
   CHECK(node != nullptr);
   switch (node->kind) {
   case NODE_VAR: {
-    int offset = node->var->offset;
-    printf("    addi t0, fp, -%d\n", 16 + offset);
+    struct Var *var = node->var;
+    if (var->is_local)
+      printf("    addi t0, fp, -%d\n", 16 + var->offset);
+    else
+      printf("    lla t0, %s\n", var->name);
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     return;
@@ -312,9 +315,25 @@ static void load_arg(struct Var *var, int idx) {
   }
 }
 
-void codegen(struct Function *prog) {
+/// @brief Emit the '.data' entry
+static void emit_data(struct Program *prog) {
   CHECK(prog != nullptr);
-  for (struct Function *func = prog; func != nullptr; func = func->next) {
+  printf(".data\n");
+
+  for (struct VarList *vl = prog->globals; vl != nullptr; vl = vl->next) {
+    struct Var *var = vl->var;
+    printf("%s:\n", var->name);
+    printf("    .zero %d\n", __size_of(var->ty));
+  }
+}
+
+/// @brief Emit the '.text' entry
+static void emit_text(struct Program *prog) {
+  CHECK(prog != nullptr);
+  printf(".text\n");
+
+  for (struct Function *func = prog->functions; func != nullptr;
+       func = func->next) {
     printf(".global %s\n", func->name);
     printf("%s:\n", func->name);
     func_name = func->name;
@@ -332,4 +351,10 @@ void codegen(struct Function *prog) {
 
     epilogue();
   }
+}
+
+void codegen(struct Program *prog) {
+  CHECK(prog != nullptr);
+  emit_data(prog);
+  emit_text(prog);
 }

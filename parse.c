@@ -9,6 +9,7 @@
 #include "type.h"
 
 struct VarList *locals;
+struct VarList *globals;
 
 struct Var *find_var(struct Token *token) {
   CHECK(token != nullptr);
@@ -17,6 +18,12 @@ struct Var *find_var(struct Token *token) {
     CHECK(var != nullptr);
     if (var->len == token->len && !memcmp(token->str, var->name, var->len))
       return var;
+  }
+
+  for (struct VarList *vl = globals; vl != nullptr; vl = vl->next) {
+    struct Var *gvar = vl->var;
+    if (gvar->len == token->len && !memcmp(token->str, gvar->name, gvar->len))
+      return gvar;
   }
   return nullptr;
 }
@@ -99,24 +106,35 @@ struct Node *new_var(struct Var *var, struct Token *tok) {
  * @brief Push the local variable to the 'VarList'.
  * @param name The name of local variable.
  * @param ty The type of local variable.
+ * @param is_local Whether the scope of variable is in local or global.
  * @return Local variable object.
  */
-struct Var *push_var(char *name, struct Type *ty) {
+struct Var *push_var(char *name, struct Type *ty, bool is_local) {
   struct Var *var = calloc(1, sizeof(*var));
   CHECK(var != nullptr);
   var->name = name;
   var->len = strlen(name);
   var->ty = ty;
+  var->is_local = is_local;
 
   struct VarList *vl = calloc(1, sizeof(*vl));
   CHECK(vl != nullptr);
   vl->var = var;
-  vl->next = locals;
-  locals = vl;
+
+  if (is_local) {
+    vl->next = locals;
+    locals = vl;
+  } else {
+    vl->next = globals;
+    globals = vl;
+  }
+
   return var;
 }
 
 static struct Function *function(struct Token **token);
+static struct Type *basetype(struct Token **token);
+static void global_var(struct Token **token);
 static struct Node *declaration(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
@@ -129,22 +147,41 @@ static struct Node *unary(struct Token **token);
 static struct Node *postfix(struct Token **token);
 static struct Node *primary(struct Token **token);
 
+static bool is_function(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Token *snapshot = *token;
+  basetype(&snapshot);
+  bool is_func =
+      (consume_ident(&snapshot) != nullptr) && consume(&snapshot, "(");
+  return is_func;
+}
+
 /**
- * @brief program = function*
+ * @brief program = (global-var | function)*
  * @param token Tokenized source codes.
  * @return Node of `program`.
  */
-struct Function *program(struct Token **token) {
+struct Program *program(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Function head = {};
   head.next = nullptr;
   struct Function *cur = &head;
+  globals = nullptr;
 
   while (!at_eof(token)) {
-    cur->next = function(token);
-    cur = cur->next;
+    if (is_function(token)) {
+      cur->next = function(token);
+      cur = cur->next;
+    } else {
+      global_var(token);
+    }
   }
-  return head.next;
+
+  struct Program *prog = calloc(1, sizeof(*prog));
+  CHECK(prog != nullptr);
+  prog->globals = globals;
+  prog->functions = head.next;
+  return prog;
 }
 
 // @brief basetype = ("char" | "int") "*"*
@@ -182,7 +219,7 @@ static struct VarList *read_func_param(struct Token **token) {
 
   struct VarList *vl = calloc(1, sizeof(*vl));
   CHECK(vl != nullptr);
-  vl->var = push_var(name, ty);
+  vl->var = push_var(name, ty, true);
   return vl;
 }
 
@@ -206,6 +243,16 @@ static struct VarList *read_func_params(struct Token **token) {
   }
 
   return head;
+}
+
+/// @brief global-var = basetype ident ("[ num ]")* ";"
+static void global_var(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Type *ty = basetype(token);
+  char *name = seek_if_expect_ident(token);
+  ty = read_type_suffix(token, ty);
+  seek_if_expect(token, ";");
+  push_var(name, ty, false);
 }
 
 /**
@@ -249,7 +296,7 @@ static struct Node *declaration(struct Token **token) {
   struct Type *ty = basetype(token);
   char *name = seek_if_expect_ident(token);
   ty = read_type_suffix(token, ty);
-  struct Var *var = push_var(name, ty);
+  struct Var *var = push_var(name, ty, true);
 
   if (consume(token, ";"))
     return new_node(NODE_NULL, tok);
