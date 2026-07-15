@@ -24,12 +24,22 @@ struct Type *pointer_to(struct Type *base) {
   return ty;
 }
 
+struct Type *array_of(struct Type *base, int size) {
+  CHECK(base != nullptr);
+  struct Type *ty = new_type(TYPE_ARRAY);
+  ty->base = base;
+  ty->array_size = size;
+  return ty;
+}
+
 int __size_of(struct Type *ty) {
   CHECK(ty != nullptr);
   if (ty->kind == TYPE_CHAR)
     return 1;
-  CHECK(ty->kind == TYPE_INT || ty->kind == TYPE_PTR);
-  return 8;
+  if (ty->kind == TYPE_INT || ty->kind == TYPE_PTR)
+    return 8;
+  CHECK(ty->kind == TYPE_ARRAY);
+  return __size_of(ty->base) * ty->array_size;
 }
 
 static void visit(struct Node *node) {
@@ -71,17 +81,17 @@ static void visit(struct Node *node) {
     node->ty = node->var->ty;
     return;
   case NODE_ADD:
-    if (node->rhs->ty->kind == TYPE_PTR) {
+    if (node->rhs->ty->base != nullptr) {
       struct Node *tmp = node->lhs;
       node->lhs = node->rhs;
       node->rhs = tmp;
     }
-    if (node->rhs->ty->kind == TYPE_PTR)
+    if (node->rhs->ty->base != nullptr)
       error_tok(node->tok, "Invalid pointer arithmetic operands.");
     node->ty = node->lhs->ty;
     return;
   case NODE_SUB:
-    if (node->rhs->ty->kind == TYPE_PTR)
+    if (node->rhs->ty->base != nullptr)
       error_tok(node->tok, "Invalid pointer arithmetic operands.");
     node->ty = node->lhs->ty;
     return;
@@ -89,10 +99,13 @@ static void visit(struct Node *node) {
     node->ty = node->lhs->ty;
     return;
   case NODE_ADDR:
-    node->ty = pointer_to(node->lhs->ty);
+    if (node->lhs->ty->kind == TYPE_ARRAY)
+      node->ty = pointer_to(node->lhs->ty->base);
+    else
+      node->ty = pointer_to(node->lhs->ty);
     return;
   case NODE_DEREF:
-    if (node->lhs->ty->kind != TYPE_PTR)
+    if (node->lhs->ty->base == nullptr)
       error_tok(node->tok, "Invalid pointer dereference.");
     node->ty = node->lhs->ty->base;
     return;

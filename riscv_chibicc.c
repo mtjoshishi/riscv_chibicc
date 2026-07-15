@@ -21,8 +21,9 @@ int main(int argc, char **argv) {
   for (struct Function *func = prog; func != nullptr; func = func->next) {
     int offset = 0;
     for (struct VarList *vl = func->locals; vl != nullptr; vl = vl->next) {
-      offset += 8;
-      vl->var->offset = offset;
+      struct Var *var = vl->var;
+      offset += __size_of(var->ty);
+      var->offset = offset;
     }
     func->stack_size = ALIGN_TO_16(offset);
   }

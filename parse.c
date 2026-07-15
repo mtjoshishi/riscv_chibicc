@@ -162,12 +162,26 @@ static struct Type *basetype(struct Token **token) {
   return ty;
 }
 
+static struct Type *read_type_suffix(struct Token **token, struct Type *base) {
+  CHECK(token != nullptr && *token != nullptr);
+  CHECK(base != nullptr);
+  if (!consume(token, "["))
+    return base;
+  int sz = seek_if_expect_number(token);
+  seek_if_expect(token, "]");
+  base = read_type_suffix(token, base);
+  return array_of(base, sz);
+}
+
 static struct VarList *read_func_param(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
+  struct Type *ty = basetype(token);
+  char *name = seek_if_expect_ident(token);
+  ty = read_type_suffix(token, ty);
+
   struct VarList *vl = calloc(1, sizeof(*vl));
   CHECK(vl != nullptr);
-  struct Type *ty = basetype(token);
-  vl->var = push_var(seek_if_expect_ident(token), ty);
+  vl->var = push_var(name, ty);
   return vl;
 }
 
@@ -227,12 +241,14 @@ static struct Function *function(struct Token **token) {
   return func;
 }
 
-// @brief declaration = basetype ident ("=" expr) ";"
+// @brief declaration = basetype ident ("[" num "]")* ("=" expr) ";"
 static struct Node *declaration(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Token *tok = *token;
   struct Type *ty = basetype(token);
-  struct Var *var = push_var(seek_if_expect_ident(token), ty);
+  char *name = seek_if_expect_ident(token);
+  ty = read_type_suffix(token, ty);
+  struct Var *var = push_var(name, ty);
 
   if (consume(token, ";"))
     return new_node(NODE_NULL, tok);

@@ -91,11 +91,12 @@ struct Node {
   int val;         // Value if kind is NODE_NUM
 };
 
-enum TypeKind { TYPE_CHAR, TYPE_INT, TYPE_PTR };
+enum TypeKind { TYPE_CHAR, TYPE_INT, TYPE_PTR, TYPE_ARRAY };
 
 struct Type {
   enum TypeKind kind;
   struct Type *base;
+  int array_size;
   int byte_size;
 };
 

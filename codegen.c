@@ -35,6 +35,16 @@ static void gen_addr(struct Node *node) {
   }
 }
 
+/**
+ * @brief Generate lvalue.
+ * @param[in] node struct Node*
+ */
+static void gen_lval(struct Node *node) {
+  if (node->ty->kind == TYPE_ARRAY)
+    error_tok(node->tok, "Not an lvalue.");
+  gen_addr(node);
+}
+
 /// @brief Load the value from the stack.
 static void load(struct Type *ty) {
   // Pop the address of the top and assign to 't0'.
@@ -122,10 +132,11 @@ static void gen(struct Node *node) {
     return;
   case NODE_VAR:
     gen_addr(node);
-    load(node->ty);
+    if (node->ty->kind != TYPE_ARRAY)
+      load(node->ty);
     return;
   case NODE_ASSIGN:
-    gen_addr(node->lhs);
+    gen_lval(node->lhs);
     gen(node->rhs);
     store(node->ty);
     return;
@@ -134,7 +145,8 @@ static void gen(struct Node *node) {
     return;
   case NODE_DEREF:
     gen(node->lhs);
-    load(node->ty);
+    if (node->ty->kind != TYPE_ARRAY)
+      load(node->ty);
     return;
   case NODE_IF: {
     long seq = labelseq++;
@@ -240,13 +252,17 @@ static void gen(struct Node *node) {
 
   switch (node->kind) {
   case NODE_ADD:
-    if (node->ty->kind == TYPE_PTR)
-      printf("    slli t1, t1, 3\n");
+    if (node->ty->base != nullptr) {
+      printf("    li t2, %d\n", __size_of(node->ty->base));
+      printf("    mul t1, t1, t2\n");
+    }
     printf("    add t0, t0, t1\n");
     break;
   case NODE_SUB:
-    if (node->ty->kind == TYPE_PTR)
-      printf("    slli t1, t1, 3\n");
+    if (node->ty->base != nullptr) {
+      printf("    li t2, %d\n", __size_of(node->ty->base));
+      printf("    mul t1, t1, t2\n");
+    }
     printf("    sub t0, t0, t1\n");
     break;
   case NODE_MUL:
