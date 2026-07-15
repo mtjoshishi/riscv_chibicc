@@ -126,6 +126,7 @@ static struct Node *relational(struct Token **token);
 static struct Node *add(struct Token **token);
 static struct Node *mul(struct Token **token);
 static struct Node *unary(struct Token **token);
+static struct Node *postfix(struct Token **token);
 static struct Node *primary(struct Token **token);
 
 /**
@@ -469,7 +470,7 @@ static struct Node *mul(struct Token **token) {
 
 /**
  * @brief unary = ("+" | "-" | "&" | "*")? unary
- *              | primary
+ *              | postfix
  * @param token Tokenized source code.
  * @return Finally returns node for `primary`.
  */
@@ -483,7 +484,21 @@ static struct Node *unary(struct Token **token) {
     return new_unary(NODE_ADDR, unary(token), *token);
   if (consume(token, "*"))
     return new_unary(NODE_DEREF, unary(token), *token);
-  return primary(token);
+  return postfix(token);
+}
+
+// @brief postfix = primary ("[ expr ]")*
+static struct Node *postfix(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = primary(token);
+
+  while (consume(token, "[")) {
+    // x[y] is short for *(x+y)
+    struct Node *exp = new_binary(NODE_ADD, node, expr(token), *token);
+    seek_if_expect(token, "]");
+    node = new_unary(NODE_DEREF, exp, *token);
+  }
+  return node;
 }
 
 static struct Node *func_args(struct Token **token) {
