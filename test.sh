@@ -159,4 +159,14 @@ assert 99 "int main() { return \"abc\"[2]; }"
 assert 0 "int main() { return \"abc\"[3]; }"
 assert 4 "int main() { return sizeof(\"abc\"); }"
 
+assert 7 "int main() { return \"\a\"[0]; }" # Bell
+assert 8 "int main() { return \"\b\"[0]; }" # Backspace
+assert 9 "int main() { return \"\t\"[0]; }" # Horizontal tab
+assert 10 "int main() { return \"\n\"[0]; }" # Newline
+assert 11 "int main() { return \"\v\"[0]; }" # Vertical tab
+assert 12 "int main() { return \"\f\"[0]; }" # Formfeed (new page)
+assert 13 "int main() { return \"\r\"[0]; }" # Carriage return
+assert 27 "int main() { return \"\e\"[0]; }" # Escape sequence
+assert 0 "int main() { return \"\0\"[0]; }" # NULL termination
+
 echo OK

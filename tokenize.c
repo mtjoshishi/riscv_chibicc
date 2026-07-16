@@ -172,6 +172,75 @@ static char *starts_with_reserved_keyword(const char *p) {
   return nullptr;
 }
 
+/// @brief Returns escape character.
+static char get_escape_char(char c) {
+  switch (c) {
+  case 'a':
+    return '\a';
+  case 'b':
+    return '\b';
+  case 't':
+    return '\t';
+  case 'n':
+    return '\n';
+  case 'v':
+    return '\v';
+  case 'f':
+    return '\f';
+  case 'r':
+    return '\r';
+  /*
+   * Escape sequence '\e' is not guaranteed to work in C-language.
+   * Therefore, use decimal of 27.
+   * See: https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+   */
+  case 'e':
+    return 27;
+  case '0':
+    return 0;
+  default:
+    return c;
+  }
+}
+
+/**
+ * @brief Read a given string literal
+ */
+struct Token *read_string_literal(struct Token **cur, char *start) {
+  CHECK(cur != nullptr && *cur != nullptr && start != nullptr);
+  char *p = start + 1;
+  enum { kLiteralBufLen = 1024 };
+  char buf[kLiteralBufLen] = {};
+  int len = 0;
+
+  for (;;) {
+    if (len == kLiteralBufLen)
+      error("String literal too large.");
+    if (*p == '\0')
+      error("Unclosed string literal.");
+    if (*p == '"')
+      break;
+
+    if (*p == '\\') {
+      p++;
+      buf[len] = get_escape_char(*p);
+    } else {
+      buf[len] = *p;
+    }
+    len += 1;
+    p++;
+  }
+
+  struct Token *tok = new_token(TK_STR, cur, start, (size_t)(p - start + 1));
+  CHECK(len > 0);
+  tok->contents = malloc((size_t)(len + 1));
+  CHECK(tok->contents != nullptr);
+  memcpy(tok->contents, buf, (size_t)len);
+  tok->contents[len] = '\0';
+  tok->content_len = len + 1;
+  return tok;
+}
+
 struct Token *tokenize(char *input) {
   CHECK(input != nullptr);
   char *p = input;
@@ -216,17 +285,8 @@ struct Token *tokenize(char *input) {
 
     // String literal
     if (*p == '"') {
-      char *q = p;
-      p++;
-      while (*p && *p != '"')
-        p++;
-      if (!*p)
-        error("Unclosed string literal.");
-      p++;
-
-      cur = new_token(TK_STR, &cur, q, (size_t)(p - q));
-      cur->contents = strndup(q + 1, (size_t)(p - q - 2));
-      cur->content_len = (int)(p - q - 1);
+      cur = read_string_literal(&cur, p);
+      p += cur->len;
       continue;
     }
 
