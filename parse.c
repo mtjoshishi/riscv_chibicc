@@ -1,5 +1,6 @@
 #include "parse.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -130,6 +131,15 @@ struct Var *push_var(char *name, struct Type *ty, bool is_local) {
   }
 
   return var;
+}
+
+static char *new_label() {
+  static int cnt = 0;
+  enum { kBufLen = 256 };
+  char buf[kBufLen] = {};
+
+  sprintf(buf, ".LC%d", cnt++);
+  return strndup(buf, 20);
 }
 
 static struct Function *function(struct Token **token);
@@ -567,8 +577,9 @@ static struct Node *func_args(struct Token **token) {
  * @brief primary = num
  *                | "sizeof" unary
  *                | ident func-args?
+ *                | str
  *                | "(" expr ")"
- *        args = "(" ")"
+ *        args = "(" ident (",", ident)* ")"
  * @param **token Tokenized source code.
  * @return Either value node or node for `expr`.
  */
@@ -599,7 +610,18 @@ static struct Node *primary(struct Token **token) {
     return new_var(var, *token);
   }
 
-  if ((*token)->kind != TK_NUM)
-    error_tok(*token, "Expected expression");
-  return new_num(seek_if_expect_number(token), *token);
+  tok = *token;
+  if (tok->kind == TK_STR) {
+    (*token) = (*token)->next;
+
+    struct Type *ty = array_of(char_type(), tok->content_len);
+    struct Var *var = push_var(new_label(), ty, false);
+    var->contents = tok->contents;
+    var->content_len = tok->content_len;
+    return new_var(var, tok);
+  }
+
+  if (tok->kind != TK_NUM)
+    error_tok(tok, "Expected expression");
+  return new_num(seek_if_expect_number(token), tok);
 }

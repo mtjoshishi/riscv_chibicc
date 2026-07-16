@@ -214,6 +214,22 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
+    // String literal
+    if (*p == '"') {
+      char *q = p;
+      p++;
+      while (*p && *p != '"')
+        p++;
+      if (!*p)
+        error("Unclosed string literal.");
+      p++;
+
+      cur = new_token(TK_STR, &cur, q, (size_t)(p - q));
+      cur->contents = strndup(q + 1, (size_t)(p - q - 2));
+      cur->content_len = (int)(p - q - 1);
+      continue;
+    }
+
     if (isdigit(*p)) {
       cur = new_token(TK_NUM, &cur, p, 0);
       char *q = p;

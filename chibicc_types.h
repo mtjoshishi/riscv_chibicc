@@ -8,6 +8,7 @@ enum TokenKind {
   TK_RESERVED, // Reserved word
   TK_IDENT,    // Identifier
   TK_NUM,      // Numeric token
+  TK_STR,      // String literal
   TK_EOF,      // End of file
 };
 
@@ -18,6 +19,9 @@ struct Token {
   int val;             // Numerical value if kind is 'TK_NUM'
   char *str;           // String of token
   size_t len;          // Length of token.
+
+  char *contents;  // String literal contents including NULL termination
+  int content_len; // Length of string literal
 
   char *source_input; // Input source
 };
@@ -59,6 +63,10 @@ struct Var {
 
   // For local variables
   int offset; // Offset of the stack from the frame pointer.
+
+  // For global string literal
+  char *contents;  // String literal contents including NULL termination
+  int content_len; // Length of string literal
 };
 
 struct VarList {

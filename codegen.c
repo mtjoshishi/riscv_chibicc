@@ -323,7 +323,15 @@ static void emit_data(struct Program *prog) {
   for (struct VarList *vl = prog->globals; vl != nullptr; vl = vl->next) {
     struct Var *var = vl->var;
     printf("%s:\n", var->name);
-    printf("    .zero %d\n", __size_of(var->ty));
+
+    if (var->contents == nullptr) {
+      printf("    .zero %d\n", __size_of(var->ty));
+      continue;
+    }
+
+    for (int i = 0; i < var->content_len; i++) {
+      printf("    .byte %d\n", var->contents[i]);
+    }
   }
 }
 
