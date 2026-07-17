@@ -558,6 +558,31 @@ static struct Node *postfix(struct Token **token) {
   return node;
 }
 
+/**
+ * @brief stmt-expr-tail = stmt stmt* "}" ")"
+ *        This is the statement expression in a GNU C extension.
+ * @param token Tokenized source code.
+ * @return `stmt-expr-tail`
+ */
+static struct Node *stmt_expr(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = new_node(NODE_STMT_EXPR, *token);
+  node->body = stmt(token);
+  struct Node *cur = node->body;
+
+  while (!consume(token, "}")) {
+    cur->next = stmt(token);
+    cur = cur->next;
+  }
+  seek_if_expect(token, ")");
+
+  if (cur->kind != NODE_EXPR_STMT)
+    error_tok(cur->tok,
+              "Returning void from a statement expression is not supported.");
+  *cur = *(cur->lhs);
+  return node;
+}
+
 static struct Node *func_args(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   if (consume(token, ")"))
@@ -579,6 +604,7 @@ static struct Node *func_args(struct Token **token) {
  *                | ident func-args?
  *                | str
  *                | "(" expr ")"
+ *                | "(" "{" stmt-expr-tail
  *        args = "(" ident (",", ident)* ")"
  * @param **token Tokenized source code.
  * @return Either value node or node for `expr`.
@@ -587,6 +613,8 @@ static struct Node *primary(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
 
   if (consume(token, "(")) {
+    if (consume(token, "{"))
+      return stmt_expr(token);
     struct Node *node = expr(token);
     seek_if_expect(token, ")");
     return node;

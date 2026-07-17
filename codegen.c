@@ -215,6 +215,8 @@ static void gen(struct Node *node) {
     return;
   }
   case NODE_BLOCK:
+    [[fallthrough]];
+  case NODE_STMT_EXPR:
     for (struct Node *n = node->body; n; n = n->next)
       gen(n);
     return;

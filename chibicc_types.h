@@ -47,6 +47,7 @@ enum NodeKind {
   NODE_FUNC_CALL, // Function call (zero-arity)
   NODE_RETURN,    // "return"
   NODE_EXPR_STMT, // Expression statement to handle void-expression.
+  NODE_STMT_EXPR, // GNU statement expression
   NODE_VAR,       // Variable
   NODE_NUM,       // number
   NODE_NULL,      // Empty statement
@@ -91,7 +92,7 @@ struct Node {
   struct Node *init;      // Initial condition for "for".
   struct Node *increment; // Increment expression for "for".
 
-  // Block
+  // Block or GNU statement expression
   struct Node *body;
 
   // Name of calling function

@@ -6,7 +6,7 @@ OBJS=$(SRCS:.c=.o)
 riscv_chibicc: $(OBJS)
 	$(CC) -o riscv_chibicc $(OBJS) $(LDFLAGS)
 
-$(OBJS): chibicc_types.h tokenize.h
+$(OBJS): chibicc_error.h chibicc_types.h codegen.h parse.h tokenize.h type.h
 
 test: riscv_chibicc
 	./test.sh

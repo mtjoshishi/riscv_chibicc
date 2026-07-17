@@ -169,4 +169,9 @@ assert 13 "int main() { return \"\r\"[0]; }" # Carriage return
 assert 27 "int main() { return \"\e\"[0]; }" # Escape sequence
 assert 0 "int main() { return \"\0\"[0]; }" # NULL termination
 
+assert 0 "int main() { return ({ 0; }); }"
+assert 2 "int main() { return ({ 0; 1; 2; }); }"
+assert 1 "int main() { ({ 0; return 1; 2; }); return 3; }"
+assert 3 "int main() { return ({ int x = 3; x; }); }"
+
 echo OK

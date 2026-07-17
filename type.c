@@ -115,6 +115,13 @@ static void visit(struct Node *node) {
     node->val = __size_of(node->lhs->ty);
     node->lhs = nullptr;
     return;
+  case NODE_STMT_EXPR: {
+    struct Node *last = node->body;
+    while (last->next != nullptr)
+      last = last->next;
+    node->ty = last->ty;
+    return;
+  }
   default:
     return;
   }
