@@ -17,7 +17,9 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./riscv_chibicc "$input" > tmp.s || exit 1
+  echo "$input" > tmp_test
+
+  ./riscv_chibicc tmp_test > tmp.s || exit 1
   $RISCV64_CC -static tmp.s tmp2.o -o tmp.elf || exit 1
 
   # Run on QEMU.
