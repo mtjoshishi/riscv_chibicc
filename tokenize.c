@@ -112,16 +112,18 @@ bool at_eof(struct Token **token_ptr) {
  * @brief Create a new token and concatenate to the current token.
  * @param kind The kind of token.
  * @param cur_ptr The pointer of the current token.
+ * @param source_input The overall source code.
  * @param str The input string to be tokenize.
  * @param len The length of string for specified token.
  * @return The pointer of new token.
  */
-struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr, char *str,
-                        size_t len) {
+struct Token *new_token(enum TokenKind kind, struct Token **cur_ptr,
+                        char *source_input, char *str, size_t len) {
   CHECK(cur_ptr != nullptr && *cur_ptr != nullptr && str != nullptr);
   struct Token *tok = calloc(1, sizeof(*tok));
   CHECK(tok != nullptr);
   tok->kind = kind;
+  tok->source_input = source_input;
   tok->str = str;
   tok->len = len;
   (*cur_ptr)->next = tok;
@@ -232,14 +234,14 @@ struct Token *read_string_literal(struct Token **cur, char *start) {
     p++;
   }
 
-  struct Token *tok = new_token(TK_STR, cur, start, (size_t)(p - start + 1));
+  struct Token *tok = new_token(TK_STR, cur, (*cur)->source_input, start,
+                                (size_t)(p - start + 1));
   CHECK(len > 0);
   tok->contents = malloc((size_t)(len + 1));
   CHECK(tok->contents != nullptr);
   memcpy(tok->contents, buf, (size_t)len);
   tok->contents[len] = '\0';
   tok->content_len = len + 1;
-  tok->source_input = (*cur)->source_input;
   return tok;
 }
 
@@ -278,16 +280,14 @@ struct Token *tokenize(char *input) {
     char *kw = starts_with_reserved_keyword(p);
     if (kw != nullptr) {
       size_t len = strlen(kw);
-      cur = new_token(TK_RESERVED, &cur, p, len);
-      cur->source_input = input;
+      cur = new_token(TK_RESERVED, &cur, input, p, len);
       p += len;
       continue;
     }
 
     if (strchr("+-*/()<>;={},&[]", *p)) {
-      cur = new_token(TK_RESERVED, &cur, p, 1);
+      cur = new_token(TK_RESERVED, &cur, input, p, 1);
       p++;
-      cur->source_input = input;
       continue;
     }
 
@@ -297,8 +297,7 @@ struct Token *tokenize(char *input) {
       p++;
       while (is_alnum(*p))
         p++;
-      cur = new_token(TK_IDENT, &cur, q, (size_t)(p - q));
-      cur->source_input = input;
+      cur = new_token(TK_IDENT, &cur, input, q, (size_t)(p - q));
       continue;
     }
 
@@ -310,18 +309,17 @@ struct Token *tokenize(char *input) {
     }
 
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, &cur, p, 0);
+      cur = new_token(TK_NUM, &cur, input, p, 0);
       char *q = p;
       cur->val = (int)strtol(p, &p, 10);
       cur->len = (size_t)(p - q);
-      cur->source_input = input;
       continue;
     }
 
     error_at(input, p, "Invalid token.");
   }
 
-  cur = new_token(TK_EOF, &cur, p, 0);
+  cur = new_token(TK_EOF, &cur, input, p, 0);
   cur->source_input = input;
   return head.next;
 }
