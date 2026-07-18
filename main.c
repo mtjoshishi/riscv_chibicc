@@ -16,6 +16,8 @@
 #include "tokenize.h"
 #include "type.h"
 
+char *filename;
+
 #define ALIGN_TO(offset, align) (((offset) + (align) - 1) & ~((align) - 1))
 #define ALIGN_TO_16(offset) ALIGN_TO((offset), 16)
 
@@ -65,7 +67,7 @@ int main(int argc, char **argv) {
   if (argc != 2)
     error("Invalid number of arguments.");
 
-  char *filename = argv[1];
+  filename = argv[1];
   char *user_input = read_file(filename);
   struct Token *token = tokenize(user_input);
   struct Program *prog = program(&token);

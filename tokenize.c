@@ -208,6 +208,7 @@ static char get_escape_char(char c) {
  */
 struct Token *read_string_literal(struct Token **cur, char *start) {
   CHECK(cur != nullptr && *cur != nullptr && start != nullptr);
+  CHECK((*cur)->source_input != nullptr);
   char *p = start + 1;
   enum { kLiteralBufLen = 1024 };
   char buf[kLiteralBufLen] = {};
@@ -215,9 +216,9 @@ struct Token *read_string_literal(struct Token **cur, char *start) {
 
   for (;;) {
     if (len == kLiteralBufLen)
-      error("String literal too large.");
+      error_at((*cur)->source_input, start, "String literal too large.");
     if (*p == '\0')
-      error("Unclosed string literal.");
+      error((*cur)->source_input, start, "Unclosed string literal.");
     if (*p == '"')
       break;
 
@@ -238,6 +239,7 @@ struct Token *read_string_literal(struct Token **cur, char *start) {
   memcpy(tok->contents, buf, (size_t)len);
   tok->contents[len] = '\0';
   tok->content_len = len + 1;
+  tok->source_input = (*cur)->source_input;
   return tok;
 }
 
@@ -267,7 +269,7 @@ struct Token *tokenize(char *input) {
     if (startswith(p, "/*")) {
       char *q = strstr(p + 2, "*/");
       if (q == nullptr)
-        error("Unclosed block comment");
+        error_at(input, p, "Unclosed block comment");
       p = q + 2;
       continue;
     }
@@ -316,7 +318,7 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
-    error_tok(cur, "Invalid token.");
+    error_at(input, p, "Invalid token.");
   }
 
   cur = new_token(TK_EOF, &cur, p, 0);

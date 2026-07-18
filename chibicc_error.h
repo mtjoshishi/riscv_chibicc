@@ -4,6 +4,7 @@
 #include "chibicc_types.h"
 
 void error(char *fmt, ...);
+void error_at(const char *user_input, const char *loc, const char *fmt, ...);
 void error_tok(struct Token *token, char *fmt, ...);
 
 #define CHECK(cond)                                                            \

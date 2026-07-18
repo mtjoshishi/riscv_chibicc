@@ -26,6 +26,8 @@ struct Token {
   char *source_input; // Input source
 };
 
+extern char *filename;
+
 // Kind of node for AST
 enum NodeKind {
   NODE_ADD,       // '+'
