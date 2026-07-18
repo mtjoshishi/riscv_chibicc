@@ -11,10 +11,12 @@
 
 struct VarList *locals;
 struct VarList *globals;
+struct VarList *scope;
 
+/// @brief Find a variable by name
 struct Var *find_var(struct Token *token) {
   CHECK(token != nullptr);
-  for (struct VarList *vl = locals; vl != nullptr; vl = vl->next) {
+  for (struct VarList *vl = scope; vl != nullptr; vl = vl->next) {
     struct Var *var = vl->var;
     CHECK(var != nullptr);
     if (var->len == token->len && !memcmp(token->str, var->name, var->len))
@@ -129,6 +131,12 @@ struct Var *push_var(char *name, struct Type *ty, bool is_local) {
     vl->next = globals;
     globals = vl;
   }
+
+  struct VarList *sc = calloc(1, sizeof(*sc));
+  CHECK(sc != nullptr);
+  sc->var = var;
+  sc->next = scope;
+  scope = sc;
 
   return var;
 }
@@ -399,6 +407,7 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
+  struct VarList *sc = scope;
   if (consume(token, "{")) {
     struct Node head = {};
     head.next = nullptr;
@@ -408,6 +417,7 @@ static struct Node *stmt(struct Token **token) {
       cur->next = stmt(token);
       cur = cur->next;
     }
+    scope = sc;
 
     struct Node *node = new_node(NODE_BLOCK, *token);
     node->body = head.next;
@@ -566,6 +576,8 @@ static struct Node *postfix(struct Token **token) {
  */
 static struct Node *stmt_expr(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
+  struct VarList *sc = scope;
+
   struct Node *node = new_node(NODE_STMT_EXPR, *token);
   node->body = stmt(token);
   struct Node *cur = node->body;
@@ -575,6 +587,8 @@ static struct Node *stmt_expr(struct Token **token) {
     cur = cur->next;
   }
   seek_if_expect(token, ")");
+
+  scope = sc;
 
   if (cur->kind != NODE_EXPR_STMT)
     error_tok(cur->tok,
