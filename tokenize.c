@@ -255,6 +255,23 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
+    // Skip the line comment
+    if (startswith(p, "//")) {
+      p += 2;
+      while (*p != '\n')
+        p++;
+      continue;
+    }
+
+    // Skip block comment
+    if (startswith(p, "/*")) {
+      char *q = strstr(p + 2, "*/");
+      if (q == nullptr)
+        error("Unclosed block comment");
+      p = q + 2;
+      continue;
+    }
+
     // Reserved keywords or multi-letter puctuator
     char *kw = starts_with_reserved_keyword(p);
     if (kw != nullptr) {
