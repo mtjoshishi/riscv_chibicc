@@ -99,6 +99,9 @@ static void store(struct Type *ty) {
   printf("    ld t0, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
 
+  if (ty->kind == TYPE_BOOL)
+    printf("    snez t1, t1\n");
+
   // Assign the value of 't1' into the address of 't0'
   int sz = __size_of(ty);
   if (sz == 1) {

@@ -156,7 +156,7 @@ static char *starts_with_reserved_keyword(const char *p) {
   // Reserved keyword in C.
   static char *kw[] = {"return", "if",     "else",    "while", "for",
                        "sizeof", "struct", "typedef", "char",  "short",
-                       "int",    "long",   "void"};
+                       "int",    "long",   "void",    "_Bool"};
 
   for (size_t i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     size_t reserved_kw_len = strlen(kw[i]);

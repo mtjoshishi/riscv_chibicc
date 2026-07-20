@@ -18,6 +18,8 @@ static struct Type *new_type(enum TypeKind kind, int align) {
 
 struct Type *void_type() { return new_type(TYPE_VOID, 1); }
 
+struct Type *bool_type() { return new_type(TYPE_BOOL, 1); }
+
 struct Type *char_type() { return new_type(TYPE_CHAR, 1); }
 
 struct Type *short_type() { return new_type(TYPE_SHORT, 2); }
@@ -54,6 +56,8 @@ int __size_of(struct Type *ty) {
 
   switch (ty->kind) {
   case TYPE_CHAR:
+    [[fallthrough]];
+  case TYPE_BOOL:
     return 1;
   case TYPE_SHORT:
     return 2;

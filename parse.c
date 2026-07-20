@@ -273,6 +273,8 @@ static struct Type *type_specifier(struct Token **token) {
 
   if (consume(token, "void"))
     return void_type();
+  if (consume(token, "_Bool"))
+    return bool_type();
   if (consume(token, "char"))
     return char_type();
   if (consume(token, "short"))
@@ -543,9 +545,9 @@ static struct Node *read_expr_stmt(struct Token **token) {
 }
 
 static bool is_typename(struct Token **token) {
-  return peek(token, "void") || peek(token, "char") || peek(token, "short") ||
-         peek(token, "int") || peek(token, "long") || peek(token, "struct") ||
-         find_typedef(*token);
+  return peek(token, "void") || peek(token, "_Bool") || peek(token, "char") ||
+         peek(token, "short") || peek(token, "int") || peek(token, "long") ||
+         peek(token, "struct") || find_typedef(*token);
 }
 
 /**

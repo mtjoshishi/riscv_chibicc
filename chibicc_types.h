@@ -113,6 +113,7 @@ struct Node {
 
 enum TypeKind {
   TYPE_VOID,
+  TYPE_BOOL,
   TYPE_CHAR,
   TYPE_SHORT,
   TYPE_INT,
