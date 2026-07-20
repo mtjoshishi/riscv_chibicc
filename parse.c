@@ -10,9 +10,18 @@
 #include "tokenize.h"
 #include "type.h"
 
+// Scope for struct tags
+struct TagScope {
+  struct TagScope *next;
+  char *name;
+  struct Type *ty;
+};
+
 struct VarList *locals;
 struct VarList *globals;
+
 struct VarList *scope;
+struct TagScope *tag_scope;
 
 /// @brief Find a variable by name
 struct Var *find_var(struct Token *token) {
@@ -28,6 +37,21 @@ struct Var *find_var(struct Token *token) {
     struct Var *gvar = vl->var;
     if (gvar->len == token->len && !memcmp(token->str, gvar->name, gvar->len))
       return gvar;
+  }
+  return nullptr;
+}
+
+/**
+ * @brief Find the struct tag.
+ * @param token The tokenized token.
+ * @return Found tag scope. If not found, returns nullptr.
+ */
+static struct TagScope *find_tag(struct Token *token) {
+  CHECK(token != nullptr);
+  for (struct TagScope *sc = tag_scope; sc != nullptr; sc = sc->next) {
+    if (strlen(sc->name) == token->len &&
+        !memcmp(token->str, sc->name, token->len))
+      return sc;
   }
   return nullptr;
 }
@@ -234,14 +258,41 @@ static struct Type *read_type_suffix(struct Token **token, struct Type *base) {
 }
 
 /**
- * @brief struct-decl = "struct" "{ member-declaration-list }"
- * @param token The tokenized source code.
+ * @brief Push the struct's tag name into scope of tag.
+ * @param token The tokenized of source code. NOTE: this will not be sought.
+ * @param ty The type of tag.
+ */
+static void push_tag_scope(const struct Token *token, struct Type *ty) {
+  CHECK(token != nullptr);
+  struct TagScope *sc = calloc(1, sizeof(*sc));
+  CHECK(sc != nullptr);
+  sc->next = tag_scope;
+  sc->name = strndup(token->str, token->len);
+  sc->ty = ty;
+  tag_scope = sc;
+}
+
+/**
+ * @brief struct-decl = "struct" ident
+ *                    | "struct" ident? "{ member-declaration-list }"
+ * @param token The tokenized source code. This will be sought.
+ * @return The type of struct.
  */
 static struct Type *struct_decl(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   seek_if_expect(token, "struct");
+
+  // Read a struct tag.
+  struct Token *tag = consume_ident(token);
+  if (tag != nullptr && peek(token, "{") == nullptr) {
+    struct TagScope *sc = find_tag(tag);
+    if (sc == nullptr)
+      error_tok(tag, "Unknown struct type.");
+    return sc->ty;
+  }
   seek_if_expect(token, "{");
 
+  // Read struct members.
   struct Member head = {};
   head.next = nullptr;
   struct Member *cur = &head;
@@ -269,6 +320,10 @@ static struct Type *struct_decl(struct Token **token) {
     if (ty->align < mem->ty->align)
       ty->align = mem->ty->align;
   }
+
+  // Register the struct type if a name was given.
+  if (tag != nullptr)
+    push_tag_scope(tag, ty);
   return ty;
 }
 
@@ -364,11 +419,17 @@ static struct Function *function(struct Token **token) {
   return func;
 }
 
-// @brief declaration = basetype ident ("[" num "]")* ("=" expr) ";"
+/*
+ * @brief declaration = basetype ident ("[" num "]")* ("=" expr) ";"
+ *                    | basetype ";"
+ */
 static struct Node *declaration(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Token *tok = *token;
   struct Type *ty = basetype(token);
+  if (consume(token, ";"))
+    return new_node(NODE_NULL, tok);
+
   char *name = seek_if_expect_ident(token);
   ty = read_type_suffix(token, ty);
   struct Var *var = push_var(name, ty, true);
@@ -464,7 +525,8 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
-  struct VarList *sc = scope;
+  struct VarList *var_sc = scope;
+  struct TagScope *tag_sc = tag_scope;
   if (consume(token, "{")) {
     struct Node head = {};
     head.next = nullptr;
@@ -474,7 +536,8 @@ static struct Node *stmt(struct Token **token) {
       cur->next = stmt(token);
       cur = cur->next;
     }
-    scope = sc;
+    scope = var_sc;
+    tag_scope = tag_sc;
 
     struct Node *node = new_node(NODE_BLOCK, *token);
     node->body = head.next;
@@ -642,7 +705,8 @@ static struct Node *postfix(struct Token **token) {
  */
 static struct Node *stmt_expr(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct VarList *sc = scope;
+  struct VarList *var_sc = scope;
+  struct TagScope *tag_sc = tag_scope;
 
   struct Node *node = new_node(NODE_STMT_EXPR, *token);
   node->body = stmt(token);
@@ -654,7 +718,8 @@ static struct Node *stmt_expr(struct Token **token) {
   }
   seek_if_expect(token, ")");
 
-  scope = sc;
+  scope = var_sc;
+  tag_scope = tag_sc;
 
   if (cur->kind != NODE_EXPR_STMT)
     error_tok(cur->tok,
