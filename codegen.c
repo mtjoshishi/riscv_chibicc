@@ -73,10 +73,15 @@ static void load(struct Type *ty) {
   printf("    ld t0, 0(sp)\n");
 
   // Read the value and assign to 't0'.
-  if (__size_of(ty) == 1)
+  int sz = __size_of(ty);
+  if (sz == 1) {
     printf("    lb t0, 0(t0)\n");
-  else
+  } else if (sz == 4) {
+    printf("    lw t0, 0(t0)\n");
+  } else {
+    CHECK(sz == 8);
     printf("    ld t0, 0(t0)\n");
+  }
 
   // Push the read value at 't0' to stack.
   printf("    sd t0, 0(sp)\n");
@@ -93,17 +98,26 @@ static void store(struct Type *ty) {
   printf("    addi sp, sp, 8\n");
 
   // Assign the value of 't1' into the address of 't0'
-  if (__size_of(ty) == 1)
+  int sz = __size_of(ty);
+  if (sz == 1) {
     printf("    sb t1, 0(t0)\n");
-  else
+  } else if (sz == 4) {
+    printf("    sw t1, 0(t0)\n");
+  } else {
+    CHECK(sz == 8);
     printf("    sd t1, 0(t0)\n");
+  }
 
   // Push the value of 't1'
   printf("    addi sp, sp, -8\n");
-  if (__size_of(ty) == 1)
+  if (sz == 1) {
     printf("    sb t1, 0(sp)\n");
-  else
+  } else if (sz == 4) {
+    printf("    sw t1, 0(sp)\n");
+  } else {
+    CHECK(sz == 8);
     printf("    sd t1, 0(sp)\n");
+  }
 }
 
 /**
@@ -118,8 +132,8 @@ static void prologue(int stack_size) {
   printf("    addi fp, sp, 16\n");
   /*
    * RISC-V's integer immediate instructions accept 12-bit signed integers.
-   * Since overflow is ignored, numbers less than -2048 or greater than 2047 are
-   * not accepted. If the stack size exceeds the range of a 12-bit signed
+   * Since overflow is ignored, numbers less than -2048 or greater than 2047
+   * are not accepted. If the stack size exceeds the range of a 12-bit signed
    * integer, it must first be stored in a register.
    */
   if (-stack_size >= -2048) {
@@ -342,10 +356,12 @@ static void gen(struct Node *node) {
 static void load_arg(struct Var *var, int idx) {
   int sz = __size_of(var->ty);
   if (sz == 1) {
-    printf("    sb %s, -%d(fp)\n", argreg[idx], 16 + var->offset);
+    printf("    sb %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
+  } else if (sz == 4) {
+    printf("    sw %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
   } else {
     CHECK(sz == 8);
-    printf("    sd %s, -%d(fp)\n", argreg[idx], 16 + var->offset);
+    printf("    sd %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
   }
 }
 
