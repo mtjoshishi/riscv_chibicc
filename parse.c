@@ -264,13 +264,15 @@ struct Program *program(struct Token **token) {
 
 /**
  * @brief type-specifier = builtin-type | struct-decl | typedef-name
- *        builtin-type = "char" | "short" | "int" | "long"
+ *        builtin-type = "void" | "char" | "short" | "int" | "long"
  */
 static struct Type *type_specifier(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   if (!is_typename(token))
     error_tok(*token, "Typename expected.");
 
+  if (consume(token, "void"))
+    return void_type();
   if (consume(token, "char"))
     return char_type();
   if (consume(token, "short"))
@@ -519,8 +521,11 @@ static struct Node *declaration(struct Token **token) {
   char *name = nullptr;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
-  struct Var *var = push_var(name, ty, true);
 
+  if (ty->kind == TYPE_VOID)
+    error_tok(tok, "Variable declared as void.");
+
+  struct Var *var = push_var(name, ty, true);
   if (consume(token, ";"))
     return new_node(NODE_NULL, tok);
 
@@ -538,8 +543,9 @@ static struct Node *read_expr_stmt(struct Token **token) {
 }
 
 static bool is_typename(struct Token **token) {
-  return peek(token, "char") || peek(token, "short") || peek(token, "int") ||
-         peek(token, "long") || peek(token, "struct") || find_typedef(*token);
+  return peek(token, "void") || peek(token, "char") || peek(token, "short") ||
+         peek(token, "int") || peek(token, "long") || peek(token, "struct") ||
+         find_typedef(*token);
 }
 
 /**

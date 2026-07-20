@@ -4,6 +4,7 @@
 
 #include "chibicc_types.h"
 
+struct Type *void_type();
 struct Type *char_type();
 struct Type *short_type();
 struct Type *int_type();

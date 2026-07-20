@@ -16,6 +16,8 @@ static struct Type *new_type(enum TypeKind kind, int align) {
   return ty;
 }
 
+struct Type *void_type() { return new_type(TYPE_VOID, 1); }
+
 struct Type *char_type() { return new_type(TYPE_CHAR, 1); }
 
 struct Type *short_type() { return new_type(TYPE_SHORT, 2); }
@@ -48,6 +50,8 @@ struct Type *array_of(struct Type *base, int size) {
 
 int __size_of(struct Type *ty) {
   CHECK(ty != nullptr);
+  CHECK(ty->kind != TYPE_VOID);
+
   switch (ty->kind) {
   case TYPE_CHAR:
     return 1;
@@ -154,6 +158,8 @@ static void visit(struct Node *node) {
     if (node->lhs->ty->base == nullptr)
       error_tok(node->tok, "Invalid pointer dereference.");
     node->ty = node->lhs->ty->base;
+    if (node->ty->kind == TYPE_VOID)
+      error_tok(node->tok, "Dereferencing a void pointer,");
     return;
   case NODE_SIZEOF:
     node->kind = NODE_NUM;
