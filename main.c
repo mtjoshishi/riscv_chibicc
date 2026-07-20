@@ -11,15 +11,13 @@
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
+#include "chibicc_utils.h"
 #include "codegen.h"
 #include "parse.h"
 #include "tokenize.h"
 #include "type.h"
 
 char *filename;
-
-#define ALIGN_TO(offset, align) (((offset) + (align) - 1) & ~((align) - 1))
-#define ALIGN_TO_16(offset) ALIGN_TO((offset), 16)
 
 static char *read_file(char *path) {
   errno = 0;
@@ -83,7 +81,7 @@ int main(int argc, char **argv) {
       offset += __size_of(var->ty);
       var->offset = offset;
     }
-    func->stack_size = ALIGN_TO_16(offset);
+    func->stack_size = align_to(offset, 16);
   }
 
   codegen(prog);

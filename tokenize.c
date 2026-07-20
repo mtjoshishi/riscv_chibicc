@@ -154,8 +154,8 @@ static bool is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
  */
 static char *starts_with_reserved_keyword(const char *p) {
   // Reserved keyword in C.
-  static char *kw[] = {"return", "if",     "else", "while",
-                       "for",    "sizeof", "char", "int"};
+  static char *kw[] = {"return", "if",     "else", "while", "for",
+                       "sizeof", "struct", "char", "int"};
 
   for (size_t i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     size_t reserved_kw_len = strlen(kw[i]);
@@ -285,7 +285,7 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
-    if (strchr("+-*/()<>;={},&[]", *p)) {
+    if (strchr("+-*/()<>;={},&[].", *p)) {
       cur = new_token(TK_RESERVED, &cur, input, p, 1);
       p++;
       continue;

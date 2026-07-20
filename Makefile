@@ -7,7 +7,8 @@ RISCV64_CC=riscv64-linux-gnu-gcc
 riscv_chibicc: $(OBJS)
 	$(CC) -o riscv_chibicc $(OBJS) $(LDFLAGS)
 
-$(OBJS): chibicc_error.h chibicc_types.h codegen.h parse.h tokenize.h type.h
+$(OBJS): chibicc_error.h chibicc_types.h chibicc_utils.h codegen.h parse.h \
+	tokenize.h type.h
 
 test: riscv_chibicc
 	./riscv_chibicc tests.tc > tmp.s

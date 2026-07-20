@@ -6,6 +6,7 @@
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
+#include "chibicc_utils.h"
 #include "tokenize.h"
 #include "type.h"
 
@@ -152,8 +153,11 @@ static char *new_label() {
 
 static struct Function *function(struct Token **token);
 static struct Type *basetype(struct Token **token);
+static struct Type *struct_decl(struct Token **token);
+static struct Member *member_declaration_list(struct Token **token);
 static void global_var(struct Token **token);
 static struct Node *declaration(struct Token **token);
+static bool is_typename(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
 static struct Node *assign(struct Token **token);
@@ -202,16 +206,16 @@ struct Program *program(struct Token **token) {
   return prog;
 }
 
-// @brief basetype = ("char" | "int") "*"*
+// @brief basetype = ("char" | "int" | struct-decl ) "*"*
 static struct Type *basetype(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Type *ty = nullptr;
-  if (consume(token, "char")) {
+  if (consume(token, "char"))
     ty = char_type();
-  } else {
-    seek_if_expect(token, "int");
+  else if (consume(token, "int"))
     ty = int_type();
-  }
+  else
+    ty = struct_decl(token);
 
   while (consume(token, "*"))
     ty = pointer_to(ty);
@@ -227,6 +231,59 @@ static struct Type *read_type_suffix(struct Token **token, struct Type *base) {
   seek_if_expect(token, "]");
   base = read_type_suffix(token, base);
   return array_of(base, sz);
+}
+
+/**
+ * @brief struct-decl = "struct" "{ member-declaration-list }"
+ * @param token The tokenized source code.
+ */
+static struct Type *struct_decl(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  seek_if_expect(token, "struct");
+  seek_if_expect(token, "{");
+
+  struct Member head = {};
+  head.next = nullptr;
+  struct Member *cur = &head;
+
+  while (!consume(token, "}")) {
+    cur->next = member_declaration_list(token);
+    cur = cur->next;
+  }
+
+  struct Type *ty = calloc(1, sizeof(*ty));
+  ty->kind = TYPE_STRUCT;
+  ty->members = head.next;
+
+  /*
+   * Assign offsets within the struct to members.
+   * The alignment of all struct member is going to be aligned to
+   * 'mem->ty->align'.
+   */
+  int offset = 0;
+  for (struct Member *mem = ty->members; mem != nullptr; mem = mem->next) {
+    offset = align_to(offset, mem->ty->align);
+    mem->offset = offset;
+    offset += __size_of(mem->ty);
+
+    if (ty->align < mem->ty->align)
+      ty->align = mem->ty->align;
+  }
+  return ty;
+}
+
+/**
+ * @brief member-declaration-list = basetype ident ("[ num ]")* ";"
+ * @param token The tokenized source codes.
+ */
+static struct Member *member_declaration_list(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Member *mem = calloc(1, sizeof(*mem));
+  mem->ty = basetype(token);
+  mem->name = seek_if_expect_ident(token);
+  mem->ty = read_type_suffix(token, mem->ty);
+  seek_if_expect(token, ";");
+  return mem;
 }
 
 static struct VarList *read_func_param(struct Token **token) {
@@ -333,7 +390,7 @@ static struct Node *read_expr_stmt(struct Token **token) {
 }
 
 static bool is_typename(struct Token **token) {
-  return peek(token, "char") || peek(token, "int");
+  return peek(token, "char") || peek(token, "int") || peek(token, "struct");
 }
 
 /**
@@ -554,18 +611,27 @@ static struct Node *unary(struct Token **token) {
   return postfix(token);
 }
 
-// @brief postfix = primary ("[ expr ]")*
+// @brief postfix = primary ("[ expr ]" | "." ident)*
 static struct Node *postfix(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = primary(token);
 
-  while (consume(token, "[")) {
-    // x[y] is short for *(x+y)
-    struct Node *exp = new_binary(NODE_ADD, node, expr(token), *token);
-    seek_if_expect(token, "]");
-    node = new_unary(NODE_DEREF, exp, *token);
+  for (;;) {
+    if (consume(token, "[")) {
+      // x[y] is short for *(x+y)
+      struct Node *exp = new_binary(NODE_ADD, node, expr(token), *token);
+      seek_if_expect(token, "]");
+      node = new_unary(NODE_DEREF, exp, *token);
+      continue;
+    }
+
+    if (consume(token, ".")) {
+      node = new_unary(NODE_MEMBER, node, *token);
+      node->member_name = seek_if_expect_ident(token);
+      continue;
+    }
+    return node;
   }
-  return node;
 }
 
 /**

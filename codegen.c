@@ -21,8 +21,21 @@ static void gen_addr(struct Node *node) {
   switch (node->kind) {
   case NODE_VAR: {
     struct Var *var = node->var;
+    int offset = -(16 + var->offset);
     if (var->is_local)
-      printf("    addi t0, fp, -%d\n", 16 + var->offset);
+      /*
+       * RISC-V's integer immediate instructions accept 12-bit signed integers.
+       * Since overflow is ignored, numbers less than -2048 or greater than 2047
+       * are not accepted. If the stack size exceeds the range of a 12-bit
+       * signed integer, it must first be stored in a register.
+       */
+      // TODO: Add helper function of immediate instructions.
+      if (offset >= -2028 && offset <= 2047) {
+        printf("    addi t0, fp, %d\n", offset);
+      } else {
+        printf("    li t1, %d\n", offset);
+        printf("    add t0, fp, t1\n");
+      }
     else
       printf("    lla t0, %s\n", var->name);
     printf("    addi sp, sp, -8\n");
@@ -31,6 +44,12 @@ static void gen_addr(struct Node *node) {
   }
   case NODE_DEREF:
     gen(node->lhs);
+    return;
+  case NODE_MEMBER:
+    gen_addr(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi t0, t0, %d\n", node->member->offset);
+    printf("    sd t0, 0(sp)\n");
     return;
   default:
     error_tok(node->tok,
@@ -97,7 +116,18 @@ static void prologue(int stack_size) {
   printf("    sd ra, 8(sp)\n");
   printf("    sd fp, 0(sp)\n");
   printf("    addi fp, sp, 16\n");
-  printf("    addi sp, sp, -%d\n", stack_size);
+  /*
+   * RISC-V's integer immediate instructions accept 12-bit signed integers.
+   * Since overflow is ignored, numbers less than -2048 or greater than 2047 are
+   * not accepted. If the stack size exceeds the range of a 12-bit signed
+   * integer, it must first be stored in a register.
+   */
+  if (-stack_size >= -2048) {
+    printf("    addi sp, sp, %d\n", -stack_size);
+  } else {
+    printf("    li t0, %d\n", -stack_size);
+    printf("    add sp, sp, t0\n");
+  }
 }
 
 /**
@@ -134,6 +164,8 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, 8\n");
     return;
   case NODE_VAR:
+    [[fallthrough]];
+  case NODE_MEMBER:
     gen_addr(node);
     if (node->ty->kind != TYPE_ARRAY)
       load(node->ty);

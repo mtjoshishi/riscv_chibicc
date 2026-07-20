@@ -29,6 +29,8 @@ struct Token {
 extern char *filename;
 
 // Kind of node for AST
+struct Member;
+
 enum NodeKind {
   NODE_ADD,       // '+'
   NODE_SUB,       // '-'
@@ -39,6 +41,7 @@ enum NodeKind {
   NODE_LT,        // <
   NODE_LE,        // <=
   NODE_ASSIGN,    // =
+  NODE_MEMBER,    // . (struct member access)
   NODE_ADDR,      // unary '&'
   NODE_DEREF,     // unary '*'
   NODE_IF,        // "if"
@@ -97,6 +100,10 @@ struct Node {
   // Block or GNU statement expression
   struct Node *body;
 
+  // Struct member access
+  char *member_name;
+  struct Member *member;
+
   // Name of calling function
   char *funcname;
   struct Node *args;
@@ -105,13 +112,22 @@ struct Node {
   int val;         // Value if kind is NODE_NUM
 };
 
-enum TypeKind { TYPE_CHAR, TYPE_INT, TYPE_PTR, TYPE_ARRAY };
+enum TypeKind { TYPE_CHAR, TYPE_INT, TYPE_PTR, TYPE_ARRAY, TYPE_STRUCT };
 
 struct Type {
   enum TypeKind kind;
-  struct Type *base;
-  int array_size;
-  int byte_size;
+  int align;              // Alignment
+  struct Type *base;      // Use pointer or array
+  int array_size;         // size of array
+  struct Member *members; // struct
+};
+
+// Struct member
+struct Member {
+  struct Member *next;
+  struct Type *ty;
+  char *name;
+  int offset;
 };
 
 // Program
