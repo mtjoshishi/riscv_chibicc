@@ -264,28 +264,106 @@ struct Program *program(struct Token **token) {
 
 /**
  * @brief type-specifier = builtin-type | struct-decl | typedef-name
- *        builtin-type = "void" | "char" | "short" | "int" | "long"
+ *        builtin-type = "void"
+ *                     | "_Bool"
+ *                     | "char"
+ *                     | "short" | "short" "int" | "int" "short"
+ *                     | "int"
+ *                     | "long" | "long" "int" | "int" "long"
  */
 static struct Type *type_specifier(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   if (!is_typename(token))
     error_tok(*token, "Typename expected.");
 
-  if (consume(token, "void"))
-    return void_type();
-  if (consume(token, "_Bool"))
-    return bool_type();
-  if (consume(token, "char"))
-    return char_type();
-  if (consume(token, "short"))
-    return short_type();
-  if (consume(token, "int"))
-    return int_type();
-  if (consume(token, "long"))
-    return long_type();
-  if (consume(token, "struct"))
-    return struct_decl(token);
-  return find_var(consume_ident(token))->type_def;
+  struct Type *ty = nullptr;
+
+  enum {
+    kVoid = 1 << 1,
+    kBool = 1 << 3,
+    kChar = 1 << 5,
+    kShort = 1 << 7,
+    kInt = 1 << 9,
+    kLong = 1 << 11,
+  };
+
+  int base_type = 0;
+  struct Type *user_type = nullptr;
+  bool is_typedef = false;
+
+  for (;;) {
+    // Read one token at a time.
+    struct Token *tok = *token;
+    if (consume(token, "typedef")) {
+      is_typedef = true;
+    } else if (consume(token, "void")) {
+      base_type += kVoid;
+    } else if (consume(token, "_Bool")) {
+      base_type += kBool;
+    } else if (consume(token, "char")) {
+      base_type += kChar;
+    } else if (consume(token, "short")) {
+      base_type += kShort;
+    } else if (consume(token, "int")) {
+      base_type += kInt;
+    } else if (consume(token, "long")) {
+      base_type += kLong;
+    } else if (peek(token, "struct")) {
+      if (base_type || user_type)
+        break;
+      user_type = struct_decl(token);
+    } else {
+      if (base_type || user_type)
+        break;
+      struct Type *ty = find_typedef(*token);
+      if (ty == nullptr)
+        break;
+      *token = (*token)->next;
+      user_type = ty;
+    }
+
+    switch (base_type) {
+    case kVoid:
+      ty = void_type();
+      break;
+    case kBool:
+      ty = bool_type();
+      break;
+    case kChar:
+      ty = char_type();
+      break;
+    case kShort:
+      [[fallthrough]];
+    case kShort + kInt:
+      ty = short_type();
+      break;
+    case kInt:
+      ty = int_type();
+      break;
+    case kLong:
+      [[fallthrough]];
+    case kLong + kInt:
+      ty = long_type();
+      break;
+    case 0:
+      /*
+       * The original chibicc allows implicit int conversion if the source of
+       * 'typedef' is not defined. However, ISO C99 and later do not support it.
+       * Therefore, if 'user_type' is not set, raise the error.
+       */
+      ty = user_type ? user_type : nullptr;
+      break;
+    default:
+      error_tok(tok, "Invalid type is specified.");
+    }
+  }
+
+  if (ty == nullptr)
+    error_tok(*token, "Type specifier missing, default to 'int'; ISO C99 and "
+                      "later do not support implicit int.");
+
+  ty->is_typedef = is_typedef;
+  return ty;
 }
 
 /**
@@ -356,6 +434,7 @@ static void push_tag_scope(const struct Token *token, struct Type *ty) {
 static struct Type *struct_decl(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   // Read a struct tag.
+  seek_if_expect(token, "struct");
   struct Token *tag = consume_ident(token);
   if (tag != nullptr && peek(token, "{") == nullptr) {
     struct TagScope *sc = find_tag(tag);
@@ -524,6 +603,13 @@ static struct Node *declaration(struct Token **token) {
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
 
+  if (ty->is_typedef) {
+    seek_if_expect(token, ";");
+    ty->is_typedef = false;
+    push_scope(name)->type_def = ty;
+    return new_node(NODE_NULL, tok);
+  }
+
   if (ty->kind == TYPE_VOID)
     error_tok(tok, "Variable declared as void.");
 
@@ -547,7 +633,8 @@ static struct Node *read_expr_stmt(struct Token **token) {
 static bool is_typename(struct Token **token) {
   return peek(token, "void") || peek(token, "_Bool") || peek(token, "char") ||
          peek(token, "short") || peek(token, "int") || peek(token, "long") ||
-         peek(token, "struct") || find_typedef(*token);
+         peek(token, "struct") || peek(token, "typedef") ||
+         find_typedef(*token);
 }
 
 /**
@@ -556,7 +643,6 @@ static bool is_typename(struct Token **token) {
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" expr? ";" expr? ";" expr ";" )" stmt
- *             | "typedef" type-specifier declarator type-suffix ";"
  *             | declaration
  *             | "return" expr ";"
  * @param token Tokenized source codes.
@@ -639,18 +725,6 @@ static struct Node *stmt(struct Token **token) {
     struct Node *node = new_node(NODE_BLOCK, *token);
     node->body = head.next;
     return node;
-  }
-
-  struct Token *tok = *token;
-  if (consume(token, "typedef")) {
-    struct Type *ty = type_specifier(token);
-    char *name = nullptr;
-    ty = declarator(token, ty, &name);
-    ty = type_suffix(token, ty);
-    seek_if_expect(token, ";");
-
-    push_scope(name)->type_def = ty;
-    return new_node(NODE_NULL, tok);
   }
 
   if (is_typename(token))

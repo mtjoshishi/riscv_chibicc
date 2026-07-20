@@ -126,6 +126,7 @@ enum TypeKind {
 
 struct Type {
   enum TypeKind kind;
+  bool is_typedef;        // typedef
   int align;              // Alignment
   struct Type *base;      // Use pointer or array
   int array_size;         // size of array
