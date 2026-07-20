@@ -18,7 +18,11 @@ static struct Type *new_type(enum TypeKind kind, int align) {
 
 struct Type *char_type() { return new_type(TYPE_CHAR, 1); }
 
+struct Type *short_type() { return new_type(TYPE_SHORT, 2); }
+
 struct Type *int_type() { return new_type(TYPE_INT, 4); }
+
+struct Type *long_type() { return new_type(TYPE_LONG, 8); }
 
 struct Type *pointer_to(struct Type *base) {
   CHECK(base != nullptr);
@@ -40,8 +44,12 @@ int __size_of(struct Type *ty) {
   switch (ty->kind) {
   case TYPE_CHAR:
     return 1;
+  case TYPE_SHORT:
+    return 2;
   case TYPE_INT:
     return 4;
+  case TYPE_LONG:
+    [[fallthrough]];
   case TYPE_PTR:
     return 8;
   case TYPE_ARRAY:

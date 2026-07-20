@@ -76,6 +76,8 @@ static void load(struct Type *ty) {
   int sz = __size_of(ty);
   if (sz == 1) {
     printf("    lb t0, 0(t0)\n");
+  } else if (sz == 2) {
+    printf("    lh t0, 0(t0)\n");
   } else if (sz == 4) {
     printf("    lw t0, 0(t0)\n");
   } else {
@@ -101,6 +103,8 @@ static void store(struct Type *ty) {
   int sz = __size_of(ty);
   if (sz == 1) {
     printf("    sb t1, 0(t0)\n");
+  } else if (sz == 2) {
+    printf("    sh t1, 0(t0)\n");
   } else if (sz == 4) {
     printf("    sw t1, 0(t0)\n");
   } else {
@@ -112,6 +116,8 @@ static void store(struct Type *ty) {
   printf("    addi sp, sp, -8\n");
   if (sz == 1) {
     printf("    sb t1, 0(sp)\n");
+  } else if (sz == 2) {
+    printf("    sh t1, 0(sp)\n");
   } else if (sz == 4) {
     printf("    sw t1, 0(sp)\n");
   } else {
@@ -357,6 +363,8 @@ static void load_arg(struct Var *var, int idx) {
   int sz = __size_of(var->ty);
   if (sz == 1) {
     printf("    sb %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
+  } else if (sz == 2) {
+    printf("    sh %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
   } else if (sz == 4) {
     printf("    sw %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
   } else {

@@ -112,7 +112,15 @@ struct Node {
   int val;         // Value if kind is NODE_NUM
 };
 
-enum TypeKind { TYPE_CHAR, TYPE_INT, TYPE_PTR, TYPE_ARRAY, TYPE_STRUCT };
+enum TypeKind {
+  TYPE_CHAR,
+  TYPE_SHORT,
+  TYPE_INT,
+  TYPE_LONG,
+  TYPE_PTR,
+  TYPE_ARRAY,
+  TYPE_STRUCT
+};
 
 struct Type {
   enum TypeKind kind;

@@ -230,14 +230,21 @@ struct Program *program(struct Token **token) {
   return prog;
 }
 
-// @brief basetype = ("char" | "int" | struct-decl ) "*"*
+/**
+ * @brief basetype = type "*"*
+ *        type = "char" | "int" | struct-decl
+ */
 static struct Type *basetype(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Type *ty = nullptr;
   if (consume(token, "char"))
     ty = char_type();
+  else if (consume(token, "short"))
+    ty = short_type();
   else if (consume(token, "int"))
     ty = int_type();
+  else if (consume(token, "long"))
+    ty = long_type();
   else
     ty = struct_decl(token);
 
@@ -451,7 +458,8 @@ static struct Node *read_expr_stmt(struct Token **token) {
 }
 
 static bool is_typename(struct Token **token) {
-  return peek(token, "char") || peek(token, "int") || peek(token, "struct");
+  return peek(token, "char") || peek(token, "short") || peek(token, "int") ||
+         peek(token, "long") || peek(token, "struct");
 }
 
 /**
