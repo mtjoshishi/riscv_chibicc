@@ -24,6 +24,13 @@ struct Type *int_type() { return new_type(TYPE_INT, 4); }
 
 struct Type *long_type() { return new_type(TYPE_LONG, 8); }
 
+struct Type *func_type(struct Type *return_ty) {
+  CHECK(return_ty != nullptr);
+  struct Type *ty = new_type(TYPE_FUNC, 1);
+  ty->return_ty = return_ty;
+  return ty;
+}
+
 struct Type *pointer_to(struct Type *base) {
   CHECK(base != nullptr);
   struct Type *ty = new_type(TYPE_PTR, 8);
@@ -103,8 +110,6 @@ static void visit(struct Node *node) {
   case NODE_LT:
     [[fallthrough]];
   case NODE_LE:
-    [[fallthrough]];
-  case NODE_FUNC_CALL:
     [[fallthrough]];
   case NODE_NUM:
     node->ty = int_type();

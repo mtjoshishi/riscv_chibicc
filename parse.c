@@ -167,7 +167,7 @@ struct Var *push_var(char *name, struct Type *ty, bool is_local) {
   if (is_local) {
     vl->next = locals;
     locals = vl;
-  } else {
+  } else if (ty->kind != TYPE_FUNC) {
     vl->next = globals;
     globals = vl;
   }
@@ -475,8 +475,12 @@ static struct Function *function(struct Token **token) {
 
   struct Type *ty = type_specifier(token);
   char *name = nullptr;
-  declarator(token, ty, &name);
+  ty = declarator(token, ty, &name);
 
+  // Add a function type to the scope
+  push_var(name, func_type(ty), false);
+
+  // Construct a function object.
   struct Function *func = calloc(1, sizeof(*func));
   CHECK(func != nullptr);
   // Seek the type of function. Now, ignore it.
@@ -485,6 +489,7 @@ static struct Function *function(struct Token **token) {
   func->params = read_func_params(token);
   seek_if_expect(token, "{");
 
+  // Read function body.
   struct Node head = {};
   head.next = nullptr;
   struct Node *cur = &head;
@@ -878,6 +883,15 @@ static struct Node *primary(struct Token **token) {
       struct Node *node = new_node(NODE_FUNC_CALL, *token);
       node->funcname = strndup(tok->str, tok->len);
       node->args = func_args(token);
+
+      struct VarScope *vsc = find_var(tok);
+      if (vsc != nullptr) {
+        if (vsc->var == nullptr || vsc->var->ty->kind != TYPE_FUNC)
+          error_tok(tok, "Not a function.");
+        node->ty = vsc->var->ty->return_ty;
+      } else {
+        node->ty = int_type();
+      }
       return node;
     }
 

@@ -118,7 +118,8 @@ enum TypeKind {
   TYPE_LONG,
   TYPE_PTR,
   TYPE_ARRAY,
-  TYPE_STRUCT
+  TYPE_STRUCT,
+  TYPE_FUNC,
 };
 
 struct Type {
@@ -127,6 +128,7 @@ struct Type {
   struct Type *base;      // Use pointer or array
   int array_size;         // size of array
   struct Member *members; // struct
+  struct Type *return_ty; // return type of function.
 };
 
 // Struct member
