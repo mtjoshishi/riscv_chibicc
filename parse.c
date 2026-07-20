@@ -674,7 +674,7 @@ static struct Node *unary(struct Token **token) {
   return postfix(token);
 }
 
-// @brief postfix = primary ("[ expr ]" | "." ident)*
+// @brief postfix = primary ("[ expr ]" | "." ident | "->" ident)*
 static struct Node *postfix(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = primary(token);
@@ -689,6 +689,14 @@ static struct Node *postfix(struct Token **token) {
     }
 
     if (consume(token, ".")) {
+      node = new_unary(NODE_MEMBER, node, *token);
+      node->member_name = seek_if_expect_ident(token);
+      continue;
+    }
+
+    if (consume(token, "->")) {
+      // x->y is short for (*x).y.
+      node = new_unary(NODE_DEREF, node, *token);
       node = new_unary(NODE_MEMBER, node, *token);
       node->member_name = seek_if_expect_ident(token);
       continue;

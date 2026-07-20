@@ -164,7 +164,7 @@ static char *starts_with_reserved_keyword(const char *p) {
   }
 
   // Multi-letter puctuator
-  static char *operators[] = {"==", "!=", "<=", ">="};
+  static char *operators[] = {"==", "!=", "<=", ">=", "->"};
 
   for (size_t i = 0; i < sizeof(operators) / sizeof(*operators); i++) {
     if (startswith(p, operators[i]))
