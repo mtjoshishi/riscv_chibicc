@@ -65,7 +65,7 @@ void seek_if_expect(struct Token **token_ptr, char *s) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   struct Token *token = peek(token_ptr, s);
   if (token == nullptr)
-    error_tok(token, "Expected '%s'", s);
+    error_tok(*token_ptr, "Expected '%s'", s);
   *token_ptr = (*token_ptr)->next;
 }
 
