@@ -63,7 +63,6 @@ struct Type;
 // Variable
 struct Var {
   char *name;      // Name of variable
-  size_t len;      // Length of variable name
   struct Type *ty; // Type of variable
   bool is_local;   // Whether the scope is global or not.
 

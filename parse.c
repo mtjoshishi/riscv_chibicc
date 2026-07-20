@@ -10,6 +10,14 @@
 #include "tokenize.h"
 #include "type.h"
 
+// Scopr for local variables, global variables or typedefs.
+struct VarScope {
+  struct VarScope *next;
+  char *name;
+  struct Var *var;
+  struct Type *type_def;
+};
+
 // Scope for struct tags
 struct TagScope {
   struct TagScope *next;
@@ -20,23 +28,16 @@ struct TagScope {
 struct VarList *locals;
 struct VarList *globals;
 
-struct VarList *scope;
+struct VarScope *var_scope;
 struct TagScope *tag_scope;
 
-/// @brief Find a variable by name
-struct Var *find_var(struct Token *token) {
+/// @brief Find a variable or a typedef by name.
+static struct VarScope *find_var(const struct Token *token) {
   CHECK(token != nullptr);
-  for (struct VarList *vl = scope; vl != nullptr; vl = vl->next) {
-    struct Var *var = vl->var;
-    CHECK(var != nullptr);
-    if (var->len == token->len && !memcmp(token->str, var->name, var->len))
-      return var;
-  }
-
-  for (struct VarList *vl = globals; vl != nullptr; vl = vl->next) {
-    struct Var *gvar = vl->var;
-    if (gvar->len == token->len && !memcmp(token->str, gvar->name, gvar->len))
-      return gvar;
+  for (struct VarScope *vsc = var_scope; vsc != nullptr; vsc = vsc->next) {
+    if (strlen(vsc->name) == token->len &&
+        !memcmp(token->str, vsc->name, token->len))
+      return vsc;
   }
   return nullptr;
 }
@@ -131,6 +132,21 @@ struct Node *new_var(struct Var *var, struct Token *tok) {
 }
 
 /**
+ * @brief Push the new scoped variable or typedef onto list.
+ * @param name Name of scoped variable or typedef.
+ * @return struct VarScope
+ */
+static struct VarScope *push_scope(char *name) {
+  CHECK(name != nullptr);
+  struct VarScope *vsc = calloc(1, sizeof(*vsc));
+  CHECK(vsc != nullptr);
+  vsc->name = name;
+  vsc->next = var_scope;
+  var_scope = vsc;
+  return vsc;
+}
+
+/**
  * @brief Push the local variable to the 'VarList'.
  * @param name The name of local variable.
  * @param ty The type of local variable.
@@ -141,7 +157,6 @@ struct Var *push_var(char *name, struct Type *ty, bool is_local) {
   struct Var *var = calloc(1, sizeof(*var));
   CHECK(var != nullptr);
   var->name = name;
-  var->len = strlen(name);
   var->ty = ty;
   var->is_local = is_local;
 
@@ -157,13 +172,23 @@ struct Var *push_var(char *name, struct Type *ty, bool is_local) {
     globals = vl;
   }
 
-  struct VarList *sc = calloc(1, sizeof(*sc));
-  CHECK(sc != nullptr);
-  sc->var = var;
-  sc->next = scope;
-  scope = sc;
-
+  push_scope(name)->var = var;
   return var;
+}
+
+/**
+ * @brief Search the defined 'typedef' from the scope.
+ * @param token The tokenized source code. This will not be sought.
+ * @return struct Type
+ */
+static struct Type *find_typedef(const struct Token *token) {
+  CHECK(token != nullptr);
+  if (token->kind == TK_IDENT) {
+    struct VarScope *vsc = find_var(token);
+    if (vsc != nullptr)
+      return vsc->type_def;
+  }
+  return nullptr;
 }
 
 static char *new_label() {
@@ -232,7 +257,7 @@ struct Program *program(struct Token **token) {
 
 /**
  * @brief basetype = type "*"*
- *        type = "char" | "int" | struct-decl
+ *        type = "char" | "short" | "int" | "long" | struct-decl | typedef-name
  */
 static struct Type *basetype(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
@@ -245,8 +270,11 @@ static struct Type *basetype(struct Token **token) {
     ty = int_type();
   else if (consume(token, "long"))
     ty = long_type();
-  else
+  else if (consume(token, "struct"))
     ty = struct_decl(token);
+  else
+    ty = find_var(consume_ident(token))->type_def;
+  CHECK(ty != nullptr);
 
   while (consume(token, "*"))
     ty = pointer_to(ty);
@@ -287,8 +315,6 @@ static void push_tag_scope(const struct Token *token, struct Type *ty) {
  */
 static struct Type *struct_decl(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  seek_if_expect(token, "struct");
-
   // Read a struct tag.
   struct Token *tag = consume_ident(token);
   if (tag != nullptr && peek(token, "{") == nullptr) {
@@ -459,7 +485,7 @@ static struct Node *read_expr_stmt(struct Token **token) {
 
 static bool is_typename(struct Token **token) {
   return peek(token, "char") || peek(token, "short") || peek(token, "int") ||
-         peek(token, "long") || peek(token, "struct");
+         peek(token, "long") || peek(token, "struct") || find_typedef(*token);
 }
 
 /**
@@ -468,6 +494,7 @@ static bool is_typename(struct Token **token) {
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" expr? ";" expr? ";" expr ";" )" stmt
+ *             | "typedef" basetype ident ("[" num "]")* ";"
  *             | declaration
  *             | "return" expr ";"
  * @param token Tokenized source codes.
@@ -533,7 +560,7 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
-  struct VarList *var_sc = scope;
+  struct VarScope *vsc = var_scope;
   struct TagScope *tag_sc = tag_scope;
   if (consume(token, "{")) {
     struct Node head = {};
@@ -544,12 +571,22 @@ static struct Node *stmt(struct Token **token) {
       cur->next = stmt(token);
       cur = cur->next;
     }
-    scope = var_sc;
+    var_scope = vsc;
     tag_scope = tag_sc;
 
     struct Node *node = new_node(NODE_BLOCK, *token);
     node->body = head.next;
     return node;
+  }
+
+  struct Token *tok = *token;
+  if (consume(token, "typedef")) {
+    struct Type *ty = basetype(token);
+    char *name = seek_if_expect_ident(token);
+    ty = read_type_suffix(token, ty);
+    seek_if_expect(token, ";");
+    push_scope(name)->type_def = ty;
+    return new_node(NODE_NULL, tok);
   }
 
   if (is_typename(token))
@@ -721,7 +758,7 @@ static struct Node *postfix(struct Token **token) {
  */
 static struct Node *stmt_expr(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct VarList *var_sc = scope;
+  struct VarScope *var_sc = var_scope;
   struct TagScope *tag_sc = tag_scope;
 
   struct Node *node = new_node(NODE_STMT_EXPR, *token);
@@ -734,7 +771,7 @@ static struct Node *stmt_expr(struct Token **token) {
   }
   seek_if_expect(token, ")");
 
-  scope = var_sc;
+  var_scope = var_sc;
   tag_scope = tag_sc;
 
   if (cur->kind != NODE_EXPR_STMT)
@@ -793,10 +830,10 @@ static struct Node *primary(struct Token **token) {
       return node;
     }
 
-    struct Var *var = find_var(tok);
-    if (var == nullptr)
-      error_tok(tok, "Undefined variable");
-    return new_var(var, *token);
+    struct VarScope *vsc = find_var(tok);
+    if (vsc != nullptr && vsc->var != nullptr)
+      return new_var(vsc->var, tok);
+    error_tok(tok, "Undefined variable");
   }
 
   tok = *token;
