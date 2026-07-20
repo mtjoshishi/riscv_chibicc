@@ -201,7 +201,10 @@ static char *new_label() {
 }
 
 static struct Function *function(struct Token **token);
-static struct Type *basetype(struct Token **token);
+static struct Type *type_specifier(struct Token **token);
+static struct Type *declarator(struct Token **token, struct Type *ty,
+                               char **name);
+static struct Type *type_suffix(struct Token **token, struct Type *ty);
 static struct Type *struct_decl(struct Token **token);
 static struct Member *member_declaration_list(struct Token **token);
 static void global_var(struct Token **token);
@@ -221,9 +224,13 @@ static struct Node *primary(struct Token **token);
 static bool is_function(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Token *snapshot = *token;
-  basetype(&snapshot);
-  bool is_func =
-      (consume_ident(&snapshot) != nullptr) && consume(&snapshot, "(");
+
+  struct Type *ty = type_specifier(token);
+  char *name = nullptr;
+  declarator(token, ty, &name);
+  bool is_func = name && consume(token, "(");
+
+  *token = snapshot;
   return is_func;
 }
 
@@ -256,40 +263,69 @@ struct Program *program(struct Token **token) {
 }
 
 /**
- * @brief basetype = type "*"*
- *        type = "char" | "short" | "int" | "long" | struct-decl | typedef-name
+ * @brief type-specifier = builtin-type | struct-decl | typedef-name
+ *        builtin-type = "char" | "short" | "int" | "long"
  */
-static struct Type *basetype(struct Token **token) {
+static struct Type *type_specifier(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Type *ty = nullptr;
+  if (!is_typename(token))
+    error_tok(*token, "Typename expected.");
+
   if (consume(token, "char"))
-    ty = char_type();
-  else if (consume(token, "short"))
-    ty = short_type();
-  else if (consume(token, "int"))
-    ty = int_type();
-  else if (consume(token, "long"))
-    ty = long_type();
-  else if (consume(token, "struct"))
-    ty = struct_decl(token);
-  else
-    ty = find_var(consume_ident(token))->type_def;
+    return char_type();
+  if (consume(token, "short"))
+    return short_type();
+  if (consume(token, "int"))
+    return int_type();
+  if (consume(token, "long"))
+    return long_type();
+  if (consume(token, "struct"))
+    return struct_decl(token);
+  return find_var(consume_ident(token))->type_def;
+}
+
+/**
+ * @brief declarator = "*" ("(" declarator ")" | ident) type-suffix
+ * @param token The tokenized token.
+ * @param ty The representative 'type' object.
+ * @param name The pointer to name of declarator.
+ */
+static struct Type *declarator(struct Token **token, struct Type *ty,
+                               char **name) {
+  CHECK(token != nullptr && *token != nullptr);
   CHECK(ty != nullptr);
+  CHECK(name != nullptr);
 
   while (consume(token, "*"))
     ty = pointer_to(ty);
-  return ty;
+
+  if (consume(token, "(")) {
+    struct Type *placeholder = calloc(1, sizeof(*placeholder));
+    struct Type *new_ty = declarator(token, placeholder, name);
+    seek_if_expect(token, ")");
+    *placeholder = *type_suffix(token, ty);
+    return new_ty;
+  }
+
+  *name = seek_if_expect_ident(token);
+  return type_suffix(token, ty);
 }
 
-static struct Type *read_type_suffix(struct Token **token, struct Type *base) {
+/**
+ * @brief type-suffix = ("[" num "]" type-suffix)?
+ * @param token The tokenized token.
+ * @param ty The representative 'type' object.
+ * @return 'struct Type': type-suffix.
+ */
+static struct Type *type_suffix(struct Token **token, struct Type *ty) {
   CHECK(token != nullptr && *token != nullptr);
-  CHECK(base != nullptr);
+  CHECK(ty != nullptr);
   if (!consume(token, "["))
-    return base;
+    return ty;
   int sz = seek_if_expect_number(token);
   seek_if_expect(token, "]");
-  base = read_type_suffix(token, base);
-  return array_of(base, sz);
+  ty = type_suffix(token, ty);
+  return array_of(ty, sz);
 }
 
 /**
@@ -361,24 +397,30 @@ static struct Type *struct_decl(struct Token **token) {
 }
 
 /**
- * @brief member-declaration-list = basetype ident ("[ num ]")* ";"
+ * @brief member-declaration-list = type-specifier declarator type_suffix ";"
  * @param token The tokenized source codes.
  */
 static struct Member *member_declaration_list(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Member *mem = calloc(1, sizeof(*mem));
-  mem->ty = basetype(token);
-  mem->name = seek_if_expect_ident(token);
-  mem->ty = read_type_suffix(token, mem->ty);
+
+  struct Type *ty = type_specifier(token);
+  char *name = nullptr;
+  ty = declarator(token, ty, &name);
+  ty = type_suffix(token, ty);
   seek_if_expect(token, ";");
+
+  struct Member *mem = calloc(1, sizeof(*mem));
+  mem->name = name;
+  mem->ty = ty;
   return mem;
 }
 
 static struct VarList *read_func_param(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Type *ty = basetype(token);
-  char *name = seek_if_expect_ident(token);
-  ty = read_type_suffix(token, ty);
+  struct Type *ty = type_specifier(token);
+  char *name = nullptr;
+  ty = declarator(token, ty, &name);
+  ty = type_suffix(token, ty);
 
   struct VarList *vl = calloc(1, sizeof(*vl));
   CHECK(vl != nullptr);
@@ -408,20 +450,22 @@ static struct VarList *read_func_params(struct Token **token) {
   return head;
 }
 
-/// @brief global-var = basetype ident ("[ num ]")* ";"
+/// @brief global-var = type-specifier declarator type-suffix ";"
 static void global_var(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Type *ty = basetype(token);
-  char *name = seek_if_expect_ident(token);
-  ty = read_type_suffix(token, ty);
+
+  struct Type *ty = type_specifier(token);
+  char *name = nullptr;
+  ty = declarator(token, ty, &name);
+  ty = type_suffix(token, ty);
   seek_if_expect(token, ";");
   push_var(name, ty, false);
 }
 
 /**
- * @brief function = basetype ident "(" params? ")" "{" stmt* "}"
- *          params = param ("," param)*
- *           param = basetype ident
+ * @brief function = type-specifier declarator "(" params? ")" "{" stmt* "}"
+ *        params   = param ("," param)*
+ *        param    = type-specifier declarator type_suffix
  * @param[in] token Tokenized source code.
  * @return Node of 'function'.
  */
@@ -429,11 +473,14 @@ static struct Function *function(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   locals = nullptr;
 
+  struct Type *ty = type_specifier(token);
+  char *name = nullptr;
+  declarator(token, ty, &name);
+
   struct Function *func = calloc(1, sizeof(*func));
   CHECK(func != nullptr);
   // Seek the type of function. Now, ignore it.
-  basetype(token);
-  func->name = seek_if_expect_ident(token);
+  func->name = name;
   seek_if_expect(token, "(");
   func->params = read_func_params(token);
   seek_if_expect(token, "{");
@@ -453,18 +500,20 @@ static struct Function *function(struct Token **token) {
 }
 
 /*
- * @brief declaration = basetype ident ("[" num "]")* ("=" expr) ";"
- *                    | basetype ";"
+ * @brief declaration = type-specifier declarator type-suffix ("=" expr)? ";"
+ *                    | type-specifier ";"
  */
 static struct Node *declaration(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
+
   struct Token *tok = *token;
-  struct Type *ty = basetype(token);
+  struct Type *ty = type_specifier(token);
   if (consume(token, ";"))
     return new_node(NODE_NULL, tok);
 
-  char *name = seek_if_expect_ident(token);
-  ty = read_type_suffix(token, ty);
+  char *name = nullptr;
+  ty = declarator(token, ty, &name);
+  ty = type_suffix(token, ty);
   struct Var *var = push_var(name, ty, true);
 
   if (consume(token, ";"))
@@ -494,7 +543,7 @@ static bool is_typename(struct Token **token) {
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" expr? ";" expr? ";" expr ";" )" stmt
- *             | "typedef" basetype ident ("[" num "]")* ";"
+ *             | "typedef" type-specifier declarator type-suffix ";"
  *             | declaration
  *             | "return" expr ";"
  * @param token Tokenized source codes.
@@ -581,10 +630,12 @@ static struct Node *stmt(struct Token **token) {
 
   struct Token *tok = *token;
   if (consume(token, "typedef")) {
-    struct Type *ty = basetype(token);
-    char *name = seek_if_expect_ident(token);
-    ty = read_type_suffix(token, ty);
+    struct Type *ty = type_specifier(token);
+    char *name = nullptr;
+    ty = declarator(token, ty, &name);
+    ty = type_suffix(token, ty);
     seek_if_expect(token, ";");
+
     push_scope(name)->type_def = ty;
     return new_node(NODE_NULL, tok);
   }
