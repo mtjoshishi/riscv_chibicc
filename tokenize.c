@@ -89,11 +89,11 @@ char *seek_if_expect_ident(struct Token **token_ptr) {
  * @param token_ptr A token to seek. Expected as numeric value.
  * @return Value of a give token.
  */
-int seek_if_expect_number(struct Token **token_ptr) {
+long seek_if_expect_number(struct Token **token_ptr) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   if ((*token_ptr)->kind != TK_NUM)
     error_tok(*token_ptr, "The given token is not a numeric value.");
-  int val = (*token_ptr)->val;
+  long val = (*token_ptr)->val;
   *token_ptr = (*token_ptr)->next;
   return val;
 }
@@ -312,7 +312,7 @@ struct Token *tokenize(char *input) {
     if (isdigit(*p)) {
       cur = new_token(TK_NUM, &cur, input, p, 0);
       char *q = p;
-      cur->val = (int)strtol(p, &p, 10);
+      cur->val = strtol(p, &p, 10);
       cur->len = (size_t)(p - q);
       continue;
     }

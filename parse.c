@@ -111,7 +111,7 @@ struct Node *new_unary(enum NodeKind node_kind, struct Node *expr,
  * @param[in] tok Representative token.
  * @return New numerical value node.
  */
-struct Node *new_num(int value, struct Token *tok) {
+struct Node *new_num(long value, struct Token *tok) {
   CHECK(tok != nullptr);
   struct Node *node = new_node(NODE_NUM, tok);
   node->val = value;
@@ -429,7 +429,7 @@ static struct Type *type_suffix(struct Token **token, struct Type *ty) {
   CHECK(ty != nullptr);
   if (!consume(token, "["))
     return ty;
-  int sz = seek_if_expect_number(token);
+  long sz = seek_if_expect_number(token);
   seek_if_expect(token, "]");
   ty = type_suffix(token, ty);
   return array_of(ty, sz);
@@ -499,7 +499,7 @@ static struct Type *struct_decl(struct Token **token) {
    * The alignment of all struct member is going to be aligned to
    * 'mem->ty->align'.
    */
-  int offset = 0;
+  long offset = 0;
   for (struct Member *mem = ty->members; mem != nullptr; mem = mem->next) {
     offset = align_to(offset, mem->ty->align);
     mem->offset = offset;

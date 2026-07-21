@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
   // Assign offsets to local variables.
   for (struct Function *func = prog->functions; func != nullptr;
        func = func->next) {
-    int offset = 0;
+    long offset = 0;
     for (struct VarList *vl = func->locals; vl != nullptr; vl = vl->next) {
       struct Var *var = vl->var;
       offset = align_to(offset, var->ty->align);

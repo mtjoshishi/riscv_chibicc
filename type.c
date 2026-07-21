@@ -42,7 +42,7 @@ struct Type *pointer_to(struct Type *base) {
   return ty;
 }
 
-struct Type *array_of(struct Type *base, int size) {
+struct Type *array_of(struct Type *base, long size) {
   CHECK(base != nullptr);
   struct Type *ty = new_type(TYPE_ARRAY, base->align);
   ty->base = base;
@@ -50,7 +50,7 @@ struct Type *array_of(struct Type *base, int size) {
   return ty;
 }
 
-int __size_of(struct Type *ty) {
+long __size_of(struct Type *ty) {
   CHECK(ty != nullptr);
   CHECK(ty->kind != TYPE_VOID);
 
@@ -74,7 +74,7 @@ int __size_of(struct Type *ty) {
     struct Member *mem = ty->members;
     while (mem->next != nullptr)
       mem = mem->next;
-    int end = mem->offset + __size_of(mem->ty);
+    long end = mem->offset + __size_of(mem->ty);
     return align_to(end, ty->align);
   }
 }
@@ -118,9 +118,13 @@ static void visit(struct Node *node) {
   case NODE_LT:
     [[fallthrough]];
   case NODE_LE:
-    [[fallthrough]];
-  case NODE_NUM:
     node->ty = int_type();
+    return;
+  case NODE_NUM:
+    if (kIntMin <= node->val && node->val <= kIntMax)
+      node->ty = int_type();
+    else
+      node->ty = long_type();
     return;
   case NODE_VAR:
     node->ty = node->var->ty;

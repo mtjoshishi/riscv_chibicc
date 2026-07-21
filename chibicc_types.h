@@ -16,7 +16,7 @@ enum TokenKind {
 struct Token {
   enum TokenKind kind; // Kind of token
   struct Token *next;  // Next input token
-  int val;             // Numerical value if kind is 'TK_NUM'
+  long val;            // Numerical value if kind is 'TK_NUM'
   char *str;           // String of token
   size_t len;          // Length of token.
 
@@ -67,7 +67,7 @@ struct Var {
   bool is_local;   // Whether the scope is global or not.
 
   // For local variables
-  int offset; // Offset of the stack from the frame pointer.
+  long offset; // Offset of the stack from the frame pointer.
 
   // For global string literal
   char *contents;  // String literal contents including NULL termination
@@ -108,7 +108,7 @@ struct Node {
   struct Node *args;
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
-  int val;         // Value if kind is NODE_NUM
+  long val;        // Value if kind is NODE_NUM
 };
 
 enum TypeKind {
@@ -129,7 +129,7 @@ struct Type {
   bool is_typedef;        // typedef
   int align;              // Alignment
   struct Type *base;      // Use pointer or array
-  int array_size;         // size of array
+  long array_size;        // size of array
   struct Member *members; // struct
   struct Type *return_ty; // return type of function.
 };
@@ -139,7 +139,7 @@ struct Member {
   struct Member *next;
   struct Type *ty;
   char *name;
-  int offset;
+  long offset;
 };
 
 // Program
@@ -150,7 +150,7 @@ struct Function {
 
   struct Node *node;
   struct VarList *locals;
-  int stack_size;
+  long stack_size;
 };
 
 struct Program {

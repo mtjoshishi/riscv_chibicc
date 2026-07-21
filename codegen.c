@@ -4,6 +4,7 @@
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
+#include "chibicc_utils.h"
 #include "type.h"
 
 // Registers for the function arguments.
@@ -21,7 +22,7 @@ static void gen_addr(struct Node *node) {
   switch (node->kind) {
   case NODE_VAR: {
     struct Var *var = node->var;
-    int offset = -(16 + var->offset);
+    long offset = -(16 + var->offset);
     if (var->is_local)
       /*
        * RISC-V's integer immediate instructions accept 12-bit signed integers.
@@ -29,11 +30,10 @@ static void gen_addr(struct Node *node) {
        * are not accepted. If the stack size exceeds the range of a 12-bit
        * signed integer, it must first be stored in a register.
        */
-      // TODO: Add helper function of immediate instructions.
-      if (offset >= -2028 && offset <= 2047) {
-        printf("    addi t0, fp, %d\n", offset);
+      if (is_valid_riscv_imm12(offset)) {
+        printf("    addi t0, fp, %ld\n", offset);
       } else {
-        printf("    li t1, %d\n", offset);
+        printf("    li t1, %ld\n", offset);
         printf("    add t0, fp, t1\n");
       }
     else
@@ -48,7 +48,7 @@ static void gen_addr(struct Node *node) {
   case NODE_MEMBER:
     gen_addr(node->lhs);
     printf("    ld t0, 0(sp)\n");
-    printf("    addi t0, t0, %d\n", node->member->offset);
+    printf("    addi t0, t0, %ld\n", node->member->offset);
     printf("    sd t0, 0(sp)\n");
     return;
   default:
@@ -73,7 +73,7 @@ static void load(struct Type *ty) {
   printf("    ld t0, 0(sp)\n");
 
   // Read the value and assign to 't0'.
-  int sz = __size_of(ty);
+  long sz = __size_of(ty);
   if (sz == 1) {
     printf("    lb t0, 0(t0)\n");
   } else if (sz == 2) {
@@ -103,7 +103,7 @@ static void store(struct Type *ty) {
     printf("    snez t1, t1\n");
 
   // Assign the value of 't1' into the address of 't0'
-  int sz = __size_of(ty);
+  long sz = __size_of(ty);
   if (sz == 1) {
     printf("    sb t1, 0(t0)\n");
   } else if (sz == 2) {
@@ -133,7 +133,7 @@ static void store(struct Type *ty) {
  * @brief Export prologue.
  * @param stack_size The size of stack to push down for the local variables.
  */
-static void prologue(int stack_size) {
+static void prologue(long stack_size) {
   // Comply IALIGN=16 boundary.
   printf("    addi sp, sp, -16\n");
   printf("    sd ra, 8(sp)\n");
@@ -145,10 +145,10 @@ static void prologue(int stack_size) {
    * are not accepted. If the stack size exceeds the range of a 12-bit signed
    * integer, it must first be stored in a register.
    */
-  if (-stack_size >= -2048) {
-    printf("    addi sp, sp, %d\n", -stack_size);
+  if (is_valid_riscv_imm12(stack_size)) {
+    printf("    addi sp, sp, %ld\n", -stack_size);
   } else {
-    printf("    li t0, %d\n", -stack_size);
+    printf("    li t0, %ld\n", -stack_size);
     printf("    add sp, sp, t0\n");
   }
 }
@@ -176,7 +176,7 @@ static void gen(struct Node *node) {
   case NODE_NULL:
     return;
   case NODE_NUM:
-    printf("    li t0, %d\n", node->val);
+    printf("    li t0, %ld\n", node->val);
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     return;
@@ -313,14 +313,14 @@ static void gen(struct Node *node) {
   switch (node->kind) {
   case NODE_ADD:
     if (node->ty->base != nullptr) {
-      printf("    li t2, %d\n", __size_of(node->ty->base));
+      printf("    li t2, %ld\n", __size_of(node->ty->base));
       printf("    mul t1, t1, t2\n");
     }
     printf("    add t0, t0, t1\n");
     break;
   case NODE_SUB:
     if (node->ty->base != nullptr) {
-      printf("    li t2, %d\n", __size_of(node->ty->base));
+      printf("    li t2, %ld\n", __size_of(node->ty->base));
       printf("    mul t1, t1, t2\n");
     }
     printf("    sub t0, t0, t1\n");
@@ -363,16 +363,16 @@ static void gen(struct Node *node) {
 }
 
 static void load_arg(struct Var *var, int idx) {
-  int sz = __size_of(var->ty);
+  long sz = __size_of(var->ty);
   if (sz == 1) {
-    printf("    sb %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
+    printf("    sb %s, %ld(fp)\n", argreg[idx], -(16 + var->offset));
   } else if (sz == 2) {
-    printf("    sh %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
+    printf("    sh %s, %ld(fp)\n", argreg[idx], -(16 + var->offset));
   } else if (sz == 4) {
-    printf("    sw %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
+    printf("    sw %s, %ld(fp)\n", argreg[idx], -(16 + var->offset));
   } else {
     CHECK(sz == 8);
-    printf("    sd %s, %d(fp)\n", argreg[idx], -(16 + var->offset));
+    printf("    sd %s, %ld(fp)\n", argreg[idx], -(16 + var->offset));
   }
 }
 
@@ -386,7 +386,7 @@ static void emit_data(struct Program *prog) {
     printf("%s:\n", var->name);
 
     if (var->contents == nullptr) {
-      printf("    .zero %d\n", __size_of(var->ty));
+      printf("    .zero %ld\n", __size_of(var->ty));
       continue;
     }
 
