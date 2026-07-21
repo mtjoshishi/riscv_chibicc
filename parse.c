@@ -204,7 +204,9 @@ static struct Function *function(struct Token **token);
 static struct Type *type_specifier(struct Token **token);
 static struct Type *declarator(struct Token **token, struct Type *ty,
                                char **name);
+static struct Type *abstract_declarator(struct Token **token, struct Type *ty);
 static struct Type *type_suffix(struct Token **token, struct Type *ty);
+static struct Type *type_name(struct Token **token);
 static struct Type *struct_decl(struct Token **token);
 static struct Member *member_declaration_list(struct Token **token);
 static void global_var(struct Token **token);
@@ -394,6 +396,29 @@ static struct Type *declarator(struct Token **token, struct Type *ty,
 }
 
 /**
+ * @brief abstract-declarator = "*"* ("(" abstract-declarator ")")? type-suffix
+ * @param token The tokenized source code.
+ * @param ty The based type.
+ * @return The new type.
+ */
+static struct Type *abstract_declarator(struct Token **token, struct Type *ty) {
+  CHECK(token != nullptr && *token != nullptr);
+  CHECK(ty != nullptr);
+
+  while (consume(token, "*"))
+    ty = pointer_to(ty);
+
+  if (consume(token, "(")) {
+    struct Type *placeholder = calloc(1, sizeof(*placeholder));
+    struct Type *new_ty = abstract_declarator(token, placeholder);
+    seek_if_expect(token, ")");
+    *placeholder = *type_suffix(token, ty);
+    return new_ty;
+  }
+  return type_suffix(token, ty);
+}
+
+/**
  * @brief type-suffix = ("[" num "]" type-suffix)?
  * @param token The tokenized token.
  * @param ty The representative 'type' object.
@@ -408,6 +433,17 @@ static struct Type *type_suffix(struct Token **token, struct Type *ty) {
   seek_if_expect(token, "]");
   ty = type_suffix(token, ty);
   return array_of(ty, sz);
+}
+
+/**
+ * @brief type-name = type-specifier abstract-declarator type-suffix
+ * @param token The tokenized source code.
+ */
+static struct Type *type_name(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Type *ty = type_specifier(token);
+  ty = abstract_declarator(token, ty);
+  return type_suffix(token, ty);
 }
 
 /**
@@ -937,6 +973,7 @@ static struct Node *func_args(struct Token **token) {
 /**
  * @brief primary = num
  *                | "sizeof" unary
+ *                | "sizeof" "(" type-name ")"
  *                | ident func-args?
  *                | str
  *                | "(" expr ")"
@@ -956,10 +993,20 @@ static struct Node *primary(struct Token **token) {
     return node;
   }
 
-  if (consume(token, "sizeof"))
+  struct Token *tok = *token;
+  if (consume(token, "sizeof")) {
+    if (consume(token, "(")) {
+      if (is_typename(token)) {
+        struct Type *ty = type_name(token);
+        seek_if_expect(token, ")");
+        return new_num(__size_of(ty), tok);
+      }
+      *token = tok->next;
+    }
     return new_unary(NODE_SIZEOF, unary(token), *token);
+  }
 
-  struct Token *tok = consume_ident(token);
+  tok = consume_ident(token);
   if (tok != nullptr) {
     if (consume(token, "(")) {
       struct Node *node = new_node(NODE_FUNC_CALL, *token);
