@@ -322,6 +322,8 @@ static void gen(struct Node *node) {
     printf("    call %s\n", node->funcname);
     printf("    addi sp, sp, -8\n");
     printf("    sd a0, 0(sp)\n");
+
+    __truncate(node->ty);
     return;
   }
   case NODE_RETURN:
