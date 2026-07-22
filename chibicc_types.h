@@ -119,6 +119,7 @@ enum TypeKind {
   TYPE_SHORT,
   TYPE_INT,
   TYPE_LONG,
+  TYPE_ENUM,
   TYPE_PTR,
   TYPE_ARRAY,
   TYPE_STRUCT,

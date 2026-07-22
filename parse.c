@@ -16,6 +16,8 @@ struct VarScope {
   char *name;
   struct Var *var;
   struct Type *type_def;
+  struct Type *enum_ty;
+  long enum_val;
 };
 
 // Scope for struct tags
@@ -208,6 +210,7 @@ static struct Type *abstract_declarator(struct Token **token, struct Type *ty);
 static struct Type *type_suffix(struct Token **token, struct Type *ty);
 static struct Type *type_name(struct Token **token);
 static struct Type *struct_decl(struct Token **token);
+static struct Type *enum_specifier(struct Token **token);
 static struct Member *member_declaration_list(struct Token **token);
 static void global_var(struct Token **token);
 static struct Node *declaration(struct Token **token);
@@ -270,6 +273,7 @@ struct Program *program(struct Token **token) {
 
 /**
  * @brief type-specifier = builtin-type | struct-decl | typedef-name
+ *                       | enum-specifier
  *        builtin-type = "void"
  *                     | "_Bool"
  *                     | "char"
@@ -318,6 +322,10 @@ static struct Type *type_specifier(struct Token **token) {
       if (base_type || user_type)
         break;
       user_type = struct_decl(token);
+    } else if (peek(token, "enum")) {
+      if (base_type || user_type)
+        break;
+      user_type = enum_specifier(token);
     } else {
       if (base_type || user_type)
         break;
@@ -520,6 +528,55 @@ static struct Type *struct_decl(struct Token **token) {
 }
 
 /**
+ * @brief enum-specifier = "enum" ident
+ *                       | "enum" ident? "{" enum-list? "}"
+ *        enum-list = ident ("=" num)? ("," enum-list)?
+ * @param token Tokenized source code.
+ */
+static struct Type *enum_specifier(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  seek_if_expect(token, "enum");
+  struct Type *ty = enum_type();
+
+  // Read an enum tag if exist.
+  struct Token *tag = consume_ident(token);
+  if (tag != nullptr && !peek(token, "{")) {
+    struct TagScope *tsc = find_tag(tag);
+    if (tsc == nullptr)
+      error_tok(tag, "Unknown enum type.");
+    if (tsc->ty->kind != TYPE_ENUM)
+      error_tok(tag, "Not an enum tag.");
+    return tsc->ty;
+  }
+
+  seek_if_expect(token, "{");
+
+  // Read enum-list
+  long cnt = 0;
+  for (;;) {
+    char *name = seek_if_expect_ident(token);
+    if (consume(token, "="))
+      cnt = seek_if_expect_number(token);
+
+    struct VarScope *sc = push_scope(name);
+    sc->enum_ty = ty;
+    sc->enum_val = cnt++;
+
+    if (consume(token, ",")) {
+      if (consume(token, "}"))
+        break;
+      continue;
+    }
+    seek_if_expect(token, "}");
+    break;
+  }
+
+  if (tag != nullptr)
+    push_tag_scope(tag, ty);
+  return ty;
+}
+
+/**
  * @brief member-declaration-list = type-specifier declarator type_suffix ";"
  * @param token The tokenized source codes.
  */
@@ -679,8 +736,8 @@ static struct Node *read_expr_stmt(struct Token **token) {
 static bool is_typename(struct Token **token) {
   return peek(token, "void") || peek(token, "_Bool") || peek(token, "char") ||
          peek(token, "short") || peek(token, "int") || peek(token, "long") ||
-         peek(token, "struct") || peek(token, "typedef") ||
-         find_typedef(*token);
+         peek(token, "enum") || peek(token, "struct") ||
+         peek(token, "typedef") || find_typedef(*token);
 }
 
 /**
@@ -1057,8 +1114,12 @@ static struct Node *primary(struct Token **token) {
     }
 
     struct VarScope *vsc = find_var(tok);
-    if (vsc != nullptr && vsc->var != nullptr)
-      return new_var(vsc->var, tok);
+    if (vsc != nullptr) {
+      if (vsc->var != nullptr)
+        return new_var(vsc->var, tok);
+      if (vsc->enum_ty != nullptr)
+        return new_num(vsc->enum_val, tok);
+    }
     error_tok(tok, "Undefined variable");
   }
 

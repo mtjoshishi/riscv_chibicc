@@ -28,6 +28,8 @@ struct Type *int_type() { return new_type(TYPE_INT, 4); }
 
 struct Type *long_type() { return new_type(TYPE_LONG, 8); }
 
+struct Type *enum_type() { return new_type(TYPE_ENUM, 4); }
+
 struct Type *func_type(struct Type *return_ty) {
   CHECK(return_ty != nullptr);
   struct Type *ty = new_type(TYPE_FUNC, 1);
@@ -62,6 +64,8 @@ long __size_of(struct Type *ty) {
   case TYPE_SHORT:
     return 2;
   case TYPE_INT:
+    [[fallthrough]];
+  case TYPE_ENUM:
     return 4;
   case TYPE_LONG:
     [[fallthrough]];
