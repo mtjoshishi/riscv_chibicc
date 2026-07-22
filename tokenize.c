@@ -246,6 +246,39 @@ struct Token *read_string_literal(struct Token **cur, char *start) {
   return tok;
 }
 
+/**
+ * @brief Read a character literal.
+ * @param cur The current token. Note: the first single quote is being read!
+ * @param start The start location of a character literal.
+ * @return 'struct Token'
+ */
+static struct Token *read_char_literal(struct Token **cur, char *start) {
+  CHECK(cur != nullptr && *cur != nullptr);
+  CHECK((*cur)->source_input != nullptr && start != nullptr);
+
+  char *p = start + 1;
+  if (*p == '\0')
+    error_at((*cur)->source_input, start, "Unclosed char literal.");
+
+  char c;
+  if (*p == '\\') {
+    p++;
+    c = get_escape_char(*p);
+  } else {
+    c = *p;
+  }
+  p++;
+
+  if (*p != '\'')
+    error_at((*cur)->source_input, start, "Char literal too long.");
+  p++;
+
+  struct Token *tok =
+      new_token(TK_NUM, cur, (*cur)->source_input, start, (size_t)(p - start));
+  tok->val = c;
+  return tok;
+}
+
 struct Token *tokenize(char *input) {
   CHECK(input != nullptr);
   char *p = input;
@@ -305,6 +338,13 @@ struct Token *tokenize(char *input) {
     // String literal
     if (*p == '"') {
       cur = read_string_literal(&cur, p);
+      p += cur->len;
+      continue;
+    }
+
+    // Character literal
+    if (*p == '\'') {
+      cur = read_char_literal(&cur, p);
       p += cur->len;
       continue;
     }
