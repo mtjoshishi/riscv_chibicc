@@ -12,7 +12,8 @@ $(OBJS): chibicc_error.h chibicc_types.h chibicc_utils.h codegen.h parse.h \
 
 test: riscv_chibicc
 	./riscv_chibicc tests.tc > tmp.s
-	$(RISCV64_CC) -static -o tmp tmp.s
+	echo 'int char_fn() { return 257; }' | $(RISCV64_CC) -xc -c -o tmp2.o -
+	$(RISCV64_CC) -static -o tmp tmp.s tmp2.o
 	qemu-riscv64 ./tmp
 
 clean:

@@ -251,11 +251,14 @@ struct Program *program(struct Token **token) {
 
   while (!at_eof(token)) {
     if (is_function(token)) {
-      cur->next = function(token);
+      struct Function *func = function(token);
+      if (func == nullptr)
+        continue;
+      cur->next = func;
       cur = cur->next;
-    } else {
-      global_var(token);
+      continue;
     }
+    global_var(token);
   }
 
   struct Program *prog = calloc(1, sizeof(*prog));
@@ -583,9 +586,11 @@ static void global_var(struct Token **token) {
 }
 
 /**
- * @brief function = type-specifier declarator "(" params? ")" "{" stmt* "}"
- *        params   = param ("," param)*
- *        param    = type-specifier declarator type_suffix
+ * @brief function = type-specifier declarator "(" params? ")" \
+ *		     ("{" stmt* "}" | ";"
+ *	  params   = param ("," param)*
+ *	  param    = type-specifier
+ * declarator type_suffix
  * @param[in] token Tokenized source code.
  * @return Node of 'function'.
  */
@@ -607,12 +612,16 @@ static struct Function *function(struct Token **token) {
   func->name = name;
   seek_if_expect(token, "(");
   func->params = read_func_params(token);
-  seek_if_expect(token, "{");
+
+  // Function declaration
+  if (consume(token, ";"))
+    return nullptr;
 
   // Read function body.
   struct Node head = {};
   head.next = nullptr;
   struct Node *cur = &head;
+  seek_if_expect(token, "{");
   while (!consume(token, "}")) {
     cur->next = stmt(token);
     CHECK(cur->next != nullptr);
