@@ -55,6 +55,7 @@ enum NodeKind {
   NODE_STMT_EXPR, // GNU statement expression
   NODE_VAR,       // Variable
   NODE_NUM,       // number
+  NODE_CAST,      // Type cast
   NODE_NULL,      // Empty statement
 };
 

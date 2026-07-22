@@ -1,6 +1,7 @@
 #include "codegen.h"
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
@@ -165,6 +166,37 @@ static void epilogue() {
   printf("    ret\n");
 }
 
+static void __truncate(struct Type *ty) {
+  CHECK(ty != nullptr);
+
+  if (ty->kind == TYPE_BOOL) {
+    printf("    ld t0, 0(sp)\n");
+    printf("    snez t0, t0\n");
+    printf("    sd t0, 0(sp)\n");
+    return;
+  }
+
+  /*
+   * chibicc always manages values on the stack in 8-byte units.
+   * When truncating or sign-extending a smaller integer, the upper bytes of
+   * the existing 8-byte slot on the stack may contain leftover garbage data.
+   * To clean this up, we load the value using a sign-extending instruction
+   * (lb/lh/lw) into a register, and then write the entire 64-bit (8-byte)
+   * result back to the stack using `sd`.
+   */
+  long sz = __size_of(ty);
+  if (sz == 1) {
+    printf("    lb t0, 0(sp)\n");
+    printf("    sd t0, 0(sp)\n");
+  } else if (sz == 2) {
+    printf("    lh t0, 0(sp)\n");
+    printf("    sd t0, 0(sp)\n");
+  } else if (sz == 4) {
+    printf("    lw t0, 0(sp)\n");
+    printf("    sd t0, 0(sp)\n");
+  }
+}
+
 /**
  * @brief Generate assembly codes by traversing the AST.
  * @param node Parsed nodes of AST.
@@ -297,6 +329,10 @@ static void gen(struct Node *node) {
     printf("    ld a0, 0(sp)\n");
     printf("    addi sp, sp, 8\n");
     printf("    j .Lreturn.%s\n", func_name);
+    return;
+  case NODE_CAST:
+    gen(node->lhs);
+    __truncate(node->ty);
     return;
   default:
     break;

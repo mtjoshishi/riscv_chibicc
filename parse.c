@@ -219,6 +219,7 @@ static struct Node *equality(struct Token **token);
 static struct Node *relational(struct Token **token);
 static struct Node *add(struct Token **token);
 static struct Node *mul(struct Token **token);
+static struct Node *cast(struct Token **token);
 static struct Node *unary(struct Token **token);
 static struct Node *postfix(struct Token **token);
 static struct Node *primary(struct Token **token);
@@ -856,26 +857,48 @@ static struct Node *add(struct Token **token) {
 }
 
 /**
- * @brief mul = unary ("*" unary | "/" unary)
+ * @brief mul = cast ("*" cast | "/" cast)
  * @param **token Tokenized source code.
  * @return Node for `mul`.
  */
 static struct Node *mul(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Node *node = unary(token);
+  struct Node *node = cast(token);
 
   for (;;) {
     if (consume(token, "*"))
-      node = new_binary(NODE_MUL, node, unary(token), *token);
+      node = new_binary(NODE_MUL, node, cast(token), *token);
     else if (consume(token, "/"))
-      node = new_binary(NODE_DIV, node, unary(token), *token);
+      node = new_binary(NODE_DIV, node, cast(token), *token);
     else
       return node;
   }
 }
 
 /**
- * @brief unary = ("+" | "-" | "&" | "*")? unary
+ * @brief cast = "(" type-name ")" cast | unary
+ * @param token The tokenized source code.
+ */
+static struct Node *cast(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Token *tok = *token;
+
+  if (consume(token, "(")) {
+    if (is_typename(token)) {
+      struct Type *ty = type_name(token);
+      seek_if_expect(token, ")");
+      struct Node *node = new_unary(NODE_CAST, cast(token), tok);
+      node->ty = ty;
+      return node;
+    }
+    *token = tok;
+  }
+
+  return unary(token);
+}
+
+/**
+ * @brief unary = ("+" | "-" | "&" | "*")? cast
  *              | postfix
  * @param token Tokenized source code.
  * @return Finally returns node for `primary`.
@@ -883,13 +906,13 @@ static struct Node *mul(struct Token **token) {
 static struct Node *unary(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   if (consume(token, "+"))
-    return unary(token);
+    return cast(token);
   if (consume(token, "-"))
-    return new_binary(NODE_SUB, new_num(0, *token), unary(token), *token);
+    return new_binary(NODE_SUB, new_num(0, *token), cast(token), *token);
   if (consume(token, "&"))
-    return new_unary(NODE_ADDR, unary(token), *token);
+    return new_unary(NODE_ADDR, cast(token), *token);
   if (consume(token, "*"))
-    return new_unary(NODE_DEREF, unary(token), *token);
+    return new_unary(NODE_DEREF, cast(token), *token);
   return postfix(token);
 }
 
