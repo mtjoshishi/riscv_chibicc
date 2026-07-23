@@ -66,6 +66,39 @@ int fib(int x) {
 
 char char_fn();
 
+int count() {
+  static int cnt;
+  cnt = cnt + 1;
+  return cnt;
+}
+
+// To check sanity for static variable.
+int dummy() {
+  int a = 100;
+  int b = 200;
+  return a + b;
+}
+
+short count_short() {
+  static short int cnt;
+  cnt = cnt + 1;
+  return cnt;
+}
+
+int count_ptr() {
+  static int x;
+  static int *p;
+  p = &x;
+  *p = *p + 1;
+  return *p;
+}
+
+int count_array() {
+  static int arr[2];
+  arr[0] = arr[0] + 1;
+  return arr[0];
+}
+
 int main() {
   assert(8, ({ int a=3; int z=5; a+z; }), "int a=3; int z=5; a+z;");
 
@@ -343,6 +376,26 @@ int main() {
   assert(8, ({ enum : long { zero, one, two, } x; sizeof(x); }), "enum : long { zero, one, two, } x; sizeof(x);");
   assert(1, ({ enum t : char { zero, one, two, }; sizeof(enum t); }), "enum t : char { zero, one, two, }; sizeof(enum t);");
   assert(1, ({ enum t : char { zero, one, two, }; enum t y; sizeof(y); }), "enum t : char { zero, one, two, }; enum t y; sizeof(y);");
+
+  assert(1, count(), "count()");
+  dummy();
+  assert(2, count(), "count()");
+  dummy();
+  assert(3, count(), "count()");
+
+  assert(1, count_short(), "count_short()");
+  dummy();
+  assert(2, count_short(), "count_short()");
+  dummy();
+  assert(3, count_short(), "count_short()");
+
+  assert(1, count_ptr(), "count_ptr()");
+  dummy();
+  assert(2, count_ptr(), "count_ptr()");
+
+  assert(1, count_array(), "count_array()");
+  dummy();
+  assert(2, count_array(), "count_array()");
 
   printf("OK\n");
   return 0;

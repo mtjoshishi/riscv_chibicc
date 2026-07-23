@@ -8,6 +8,8 @@
 #define kIntMin (int)(1U << (sizeof(int) * 8 - 1))
 #define kIntMax ~kIntMin
 
+bool is_static_type(struct Type *ty);
+
 struct Type *void_type();
 struct Type *bool_type();
 struct Type *char_type();

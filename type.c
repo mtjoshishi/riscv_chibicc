@@ -8,6 +8,15 @@
 #include "chibicc_types.h"
 #include "chibicc_utils.h"
 
+/// @brief Check a given type object is static, recursively.
+bool is_static_type(struct Type *ty) {
+  for (struct Type *t = ty; t != nullptr; t = t->base) {
+    if (t->is_static)
+      return true;
+  }
+  return false;
+}
+
 static bool is_integer_type(struct Type *ty) {
   return ty->kind == TYPE_CHAR || ty->kind == TYPE_SHORT ||
          ty->kind == TYPE_INT || ty->kind == TYPE_LONG;

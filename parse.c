@@ -173,8 +173,6 @@ struct Var *push_var(char *name, struct Type *ty, bool is_local) {
     vl->next = globals;
     globals = vl;
   }
-
-  push_scope(name)->var = var;
   return var;
 }
 
@@ -280,6 +278,7 @@ struct Program *program(struct Token **token) {
  *                     | "short" | "short" "int" | "int" "short"
  *                     | "int"
  *                     | "long" | "long" "int" | "int" "long"
+ * Note that "typedef" and "static" can appear anywhere in a type-specifier.
  */
 static struct Type *type_specifier(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
@@ -300,12 +299,15 @@ static struct Type *type_specifier(struct Token **token) {
   int base_type = 0;
   struct Type *user_type = nullptr;
   bool is_typedef = false;
+  bool is_static = false;
 
   for (;;) {
     // Read one token at a time.
     struct Token *tok = *token;
     if (consume(token, "typedef")) {
       is_typedef = true;
+    } else if (consume(token, "static")) {
+      is_static = true;
     } else if (consume(token, "void")) {
       base_type += kVoid;
     } else if (consume(token, "_Bool")) {
@@ -377,6 +379,7 @@ static struct Type *type_specifier(struct Token **token) {
                       "later do not support implicit int.");
 
   ty->is_typedef = is_typedef;
+  ty->is_static = is_static;
   return ty;
 }
 
@@ -619,9 +622,12 @@ static struct VarList *read_func_param(struct Token **token) {
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
 
+  struct Var *var = push_var(name, ty, true);
+  push_scope(name)->var = var;
+
   struct VarList *vl = calloc(1, sizeof(*vl));
   CHECK(vl != nullptr);
-  vl->var = push_var(name, ty, true);
+  vl->var = var;
   return vl;
 }
 
@@ -656,7 +662,9 @@ static void global_var(struct Token **token) {
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
   seek_if_expect(token, ";");
-  push_var(name, ty, false);
+
+  struct Var *var = push_var(name, ty, false);
+  push_scope(name)->var = var;
 }
 
 /**
@@ -677,7 +685,8 @@ static struct Function *function(struct Token **token) {
   ty = declarator(token, ty, &name);
 
   // Add a function type to the scope
-  push_var(name, func_type(ty), false);
+  struct Var *var = push_var(name, func_type(ty), false);
+  push_scope(name)->var = var;
 
   // Construct a function object.
   struct Function *func = calloc(1, sizeof(*func));
@@ -733,11 +742,18 @@ static struct Node *declaration(struct Token **token) {
   if (ty->kind == TYPE_VOID)
     error_tok(tok, "Variable declared as void.");
 
-  struct Var *var = push_var(name, ty, true);
+  struct Var *var = nullptr;
+  if (is_static_type(ty))
+    var = push_var(new_label(), ty, false);
+  else
+    var = push_var(name, ty, true);
+  push_scope(name)->var = var;
+
   if (consume(token, ";"))
     return new_node(NODE_NULL, tok);
 
   seek_if_expect(token, "=");
+
   struct Node *lhs = new_var(var, tok);
   struct Node *rhs = expr(token);
   seek_if_expect(token, ";");
@@ -754,7 +770,8 @@ static bool is_typename(struct Token **token) {
   return peek(token, "void") || peek(token, "_Bool") || peek(token, "char") ||
          peek(token, "short") || peek(token, "int") || peek(token, "long") ||
          peek(token, "enum") || peek(token, "struct") ||
-         peek(token, "typedef") || find_typedef(*token);
+         peek(token, "typedef") || peek(token, "static") ||
+         find_typedef(*token);
 }
 
 /**
