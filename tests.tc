@@ -336,6 +336,14 @@ int main() {
   assert(4, ({ enum t { zero, one, two }; sizeof(enum t); }), "enum t { zero, one, two }; sizeof(enun t);");
   assert(4, ({ enum t { zero, one, two }; enum t y; sizeof(y); }), "enum t { zero, one, two }; enum t y; sizeof(y);");
 
+  assert(0, ({ enum : char { zero, one, two, }; zero; }), "enum : char { zero, one, two, }; zero;");
+  assert(1, ({ enum : char { zero, one, two, } x; sizeof(x); }), "enum : char { zero, one, two, } x; sizeof(x);");
+  assert(2, ({ enum : short { zero, one, two, } x; sizeof(x); }), "enum : short { zero, one, two, } x; sizeof(x);");
+  assert(4, ({ enum : int { zero, one, two, } x; sizeof(x); }), "enum : int { zero, one, two, } x; sizeof(x);");
+  assert(8, ({ enum : long { zero, one, two, } x; sizeof(x); }), "enum : long { zero, one, two, } x; sizeof(x);");
+  assert(1, ({ enum t : char { zero, one, two, }; sizeof(enum t); }), "enum t : char { zero, one, two, }; sizeof(enum t);");
+  assert(1, ({ enum t : char { zero, one, two, }; enum t y; sizeof(y); }), "enum t : char { zero, one, two, }; enum t y; sizeof(y);");
+
   printf("OK\n");
   return 0;
 }

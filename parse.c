@@ -528,19 +528,33 @@ static struct Type *struct_decl(struct Token **token) {
 }
 
 /**
+ * @brief enum-type-specifier = ":" type-specifier
+ * @param token Tokenized source code.
+ */
+static struct Type *enum_type_specifier(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  if (!consume(token, ":"))
+    return enum_type(int_type());
+  struct Type *basetype = type_specifier(token);
+  if (basetype == nullptr)
+    error_tok(*token, "Expected a type.");
+  return enum_type(basetype);
+}
+
+/**
  * @brief enum-specifier = "enum" ident
- *                       | "enum" ident? "{" enum-list? "}"
+ *                       | "enum" ident? enum-type-specifier? "{" enum-list? "}"
  *        enum-list = ident ("=" num)? ("," enum-list)?
+ * If 'enum-type-specifier' is not specified, treats as int by default.
  * @param token Tokenized source code.
  */
 static struct Type *enum_specifier(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   seek_if_expect(token, "enum");
-  struct Type *ty = enum_type();
 
   // Read an enum tag if exist.
   struct Token *tag = consume_ident(token);
-  if (tag != nullptr && !peek(token, "{")) {
+  if (tag != nullptr && !peek(token, ":") && !peek(token, "{")) {
     struct TagScope *tsc = find_tag(tag);
     if (tsc == nullptr)
       error_tok(tag, "Unknown enum type.");
@@ -549,6 +563,8 @@ static struct Type *enum_specifier(struct Token **token) {
     return tsc->ty;
   }
 
+  // Read a type definition
+  struct Type *ty = enum_type_specifier(token);
   seek_if_expect(token, "{");
 
   // Read enum-list
@@ -573,6 +589,7 @@ static struct Type *enum_specifier(struct Token **token) {
 
   if (tag != nullptr)
     push_tag_scope(tag, ty);
+
   return ty;
 }
 

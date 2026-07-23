@@ -1,11 +1,17 @@
 #include "type.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "chibicc_error.h"
 #include "chibicc_types.h"
 #include "chibicc_utils.h"
+
+static bool is_integer_type(struct Type *ty) {
+  return ty->kind == TYPE_CHAR || ty->kind == TYPE_SHORT ||
+         ty->kind == TYPE_INT || ty->kind == TYPE_LONG;
+}
 
 static struct Type *new_type(enum TypeKind kind, int align) {
   struct Type *ty = calloc(1, sizeof(*ty));
@@ -28,7 +34,14 @@ struct Type *int_type() { return new_type(TYPE_INT, 4); }
 
 struct Type *long_type() { return new_type(TYPE_LONG, 8); }
 
-struct Type *enum_type() { return new_type(TYPE_ENUM, 4); }
+struct Type *enum_type(struct Type *basetype) {
+  CHECK(basetype != nullptr);
+  // Do not accept void, pointer, and array.
+  CHECK(is_integer_type(basetype));
+  struct Type *ty = new_type(TYPE_ENUM, (int)__size_of(basetype));
+  ty->base = basetype;
+  return ty;
+}
 
 struct Type *func_type(struct Type *return_ty) {
   CHECK(return_ty != nullptr);
@@ -64,9 +77,9 @@ long __size_of(struct Type *ty) {
   case TYPE_SHORT:
     return 2;
   case TYPE_INT:
-    [[fallthrough]];
-  case TYPE_ENUM:
     return 4;
+  case TYPE_ENUM:
+    return __size_of(ty->base);
   case TYPE_LONG:
     [[fallthrough]];
   case TYPE_PTR:
