@@ -400,6 +400,11 @@ int main() {
   assert(55, ({ int sum=0; for (int i=0; i<=10; i=i+1) sum=sum+i; sum; }), "int sum=0; for (int i=0; i<10; i=i+1) sum=i+1; sum;");
   assert(3, ({ int i=3; int j=0; for (int i=0; i<=10; i=i+1) j=j+i; i; }), "int i=3; int j=0; for (int i=0; i<=10; i=i+1) i=j+i; i;");
 
+  assert(3, (1, 2, 3), "(1, 2, 3)");
+  assert(2, ({ int a=1; int b=2; int ret=(a, b); ret; }), "int a=1; int b=2; int ret=(a, b); ret;");
+  assert(6, ({ int i=1; int ret=(i=i+2, i+i); ret; }), "int i=1; int ret=(i=i+2, i+i); ret;");
+  assert(5, ({ int i=1; int j=2; int ret=(i=i+2, i+j); ret; }), "int i=1; int j=2; int ret=(i=i+2, i+j); ret;");
+
   printf("OK\n");
   return 0;
 }

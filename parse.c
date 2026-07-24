@@ -883,13 +883,18 @@ static struct Node *stmt(struct Token **token) {
 }
 
 /**
- * @brief expr = assign
+ * @brief expr = assign ("," assign)*
  * @param **token Tokenized source code.
  * @return Node for `expr`.
  */
 static struct Node *expr(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  return assign(token);
+  struct Node *node = assign(token);
+  while (consume(token, ",")) {
+    node = new_unary(NODE_EXPR_STMT, node, node->tok);
+    node = new_binary(NODE_COMMA, node, assign(token), *token);
+  }
+  return node;
 }
 
 /**

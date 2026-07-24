@@ -173,6 +173,9 @@ static void visit(struct Node *node) {
   case NODE_ASSIGN:
     node->ty = node->lhs->ty;
     return;
+  case NODE_COMMA:
+    node->ty = node->rhs->ty;
+    return;
   case NODE_MEMBER: {
     if (node->lhs->ty->kind != TYPE_STRUCT)
       error_tok(node->tok, "Not a struct.");

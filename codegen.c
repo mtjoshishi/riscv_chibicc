@@ -230,6 +230,10 @@ static void gen(struct Node *node) {
     gen(node->rhs);
     store(node->ty);
     return;
+  case NODE_COMMA:
+    gen(node->lhs);
+    gen(node->rhs);
+    return;
   case NODE_ADDR:
     gen_addr(node->lhs);
     return;
