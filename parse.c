@@ -779,7 +779,7 @@ static bool is_typename(struct Token **token) {
  *             | "{" stmt "}"
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "while" "(" expr ")" stmt
- *             | "for" "(" expr? ";" expr? ";" expr ";" )" stmt
+ *             | "for" "(" (expr? ";" | declaration) expr? ";" expr ";" )" stmt
  *             | declaration
  *             | "return" expr ";"
  * @param token Tokenized source codes.
@@ -820,9 +820,17 @@ static struct Node *stmt(struct Token **token) {
     CHECK(node != nullptr);
 
     seek_if_expect(token, "(");
+
+    struct VarScope *vsc = var_scope;
+    struct TagScope *tsc = tag_scope;
+
     if (!consume(token, ";")) {
-      node->init = read_expr_stmt(token);
-      seek_if_expect(token, ";");
+      if (is_typename(token)) {
+        node->init = declaration(token);
+      } else {
+        node->init = read_expr_stmt(token);
+        seek_if_expect(token, ";");
+      }
     }
 
     if (!consume(token, ";")) {
@@ -836,6 +844,8 @@ static struct Node *stmt(struct Token **token) {
     }
     node->then = stmt(token);
 
+    var_scope = vsc;
+    tag_scope = tsc;
     return node;
   }
 

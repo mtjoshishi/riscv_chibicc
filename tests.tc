@@ -397,6 +397,9 @@ int main() {
   dummy();
   assert(2, count_array(), "count_array()");
 
+  assert(55, ({ int sum=0; for (int i=0; i<=10; i=i+1) sum=sum+i; sum; }), "int sum=0; for (int i=0; i<10; i=i+1) sum=i+1; sum;");
+  assert(3, ({ int i=3; int j=0; for (int i=0; i<=10; i=i+1) j=j+i; i; }), "int i=3; int j=0; for (int i=0; i<=10; i=i+1) i=j+i; i;");
+
   printf("OK\n");
   return 0;
 }
