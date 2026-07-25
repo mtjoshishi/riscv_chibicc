@@ -53,6 +53,7 @@ enum NodeKind {
   NODE_MEMBER,     // . (struct member access)
   NODE_ADDR,       // unary '&'
   NODE_DEREF,      // unary '*'
+  NODE_NOT,        // !
   NODE_IF,         // "if"
   NODE_WHILE,      // "while"
   NODE_FOR,        // "for"

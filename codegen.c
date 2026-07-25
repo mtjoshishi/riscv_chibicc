@@ -349,6 +349,14 @@ static void gen(struct Node *node) {
     if (node->ty->kind != TYPE_ARRAY)
       load(node->ty);
     return;
+  case NODE_NOT:
+    gen(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    seqz t0, t0\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    return;
   case NODE_IF: {
     long seq = labelseq++;
     /*
