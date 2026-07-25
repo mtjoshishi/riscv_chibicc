@@ -216,6 +216,8 @@ static bool is_typename(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
 static struct Node *assign(struct Token **token);
+static struct Node *logicalor(struct Token **token);
+static struct Node *logicaland(struct Token **token);
 static struct Node *bitwiseor(struct Token **token);
 static struct Node *bitwiseand(struct Token **token);
 static struct Node *bitwisexor(struct Token **token);
@@ -901,14 +903,14 @@ static struct Node *expr(struct Token **token) {
 }
 
 /**
- * @brief assign = bitwise-or (assign-op assign)?
+ * @brief assign = logical-or (assign-op assign)?
  *        assign-op = "=" | "+=" | "-=" | "*=" | "/="
  * @param[in] token Tokenized source code.
  * @return Node for `assign`
  */
 static struct Node *assign(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Node *node = bitwiseor(token);
+  struct Node *node = logicalor(token);
   if (consume(token, "="))
     node = new_binary(NODE_ASSIGN, node, assign(token), *token);
   if (consume(token, "+="))
@@ -919,6 +921,24 @@ static struct Node *assign(struct Token **token) {
     node = new_binary(NODE_ASSIGN_MUL, node, assign(token), *token);
   if (consume(token, "/="))
     node = new_binary(NODE_ASSIGN_DIV, node, assign(token), *token);
+  return node;
+}
+
+/// @brief logical-or = logical-and ("||" logical-and)*
+static struct Node *logicalor(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = logicaland(token);
+  while (consume(token, "||"))
+    node = new_binary(NODE_LOGOR, node, logicaland(token), *token);
+  return node;
+}
+
+/// @brief logical-and = bitwise-or ("&&" bitwise-or)*
+static struct Node *logicaland(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = bitwiseor(token);
+  while (consume(token, "&&"))
+    node = new_binary(NODE_LOGAND, node, bitwiseor(token), *token);
   return node;
 }
 

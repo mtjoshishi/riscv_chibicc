@@ -152,6 +152,10 @@ static void visit(struct Node *node) {
   case NODE_LE:
     [[fallthrough]];
   case NODE_NOT:
+    [[fallthrough]];
+  case NODE_LOGOR:
+    [[fallthrough]];
+  case NODE_LOGAND:
     node->ty = int_type();
     return;
   case NODE_NUM:

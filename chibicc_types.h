@@ -58,6 +58,8 @@ enum NodeKind {
   NODE_DEREF,      // unary '*'
   NODE_NOT,        // !
   NODE_BITNOT,     // ~
+  NODE_LOGAND,     // &&
+  NODE_LOGOR,      // ||
   NODE_IF,         // "if"
   NODE_WHILE,      // "while"
   NODE_FOR,        // "for"

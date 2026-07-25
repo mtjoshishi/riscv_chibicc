@@ -365,6 +365,73 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     return;
+  case NODE_LOGOR: {
+    /*
+     * Sequence:
+     * 1. Evaluate the expression on the LHS, and pop the result from the
+     *    top of the stack into the 't0' register.
+     * 2. Check if the value of 't0' is UNEQUAL to zero ('x0'). If it is
+     *    true, jump to '.Ltrue' label, push 1 onto the stack, and terminate
+     *    the evaluation. If it is false, go to the evaluation of the RHS.
+     * 3. Evaluate whether the value of 't0' (the RHS result) is EQUAL to
+     *    zero. If it is true, jump to '.Lfalse' label and push 0 onto the
+     *    stack. If not, fall through to '.Ltrue' label and push 1 onto the
+     *    stack.
+     */
+    long seq = labelseq++;
+    gen(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    bne t0, x0, .Ltrue%ld\n", seq);
+    gen(node->rhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    beq t0, x0, .Lfalse%ld\n", seq);
+    printf(".Ltrue%ld:\n", seq);
+    printf("    addi sp, sp, -8\n");
+    printf("    li t0, 1\n");
+    printf("    sd t0, 0(sp)\n");
+    printf("    j .Lend%ld\n", seq);
+    printf(".Lfalse%ld:\n", seq);
+    printf("    addi sp, sp, -8\n");
+    printf("    li t0, 0\n");
+    printf("    sd t0, 0(sp)\n");
+    printf(".Lend%ld:\n", seq);
+    return;
+  }
+  case NODE_LOGAND: {
+    /*
+     * Sequence:
+     * 1. Evaluate the expression on the LHS, and pop the result from the
+     *    top of the stack into the 't0' register.
+     * 2. Check if the value of 't0' is EQUAL to zero ('x0'). If it is true,
+     *    jump to '.Lfalse' label, push 0 onto the stack, and terminate the
+     *    evaluation. If it is false, go to the evaluation of the RHS.
+     * 3. Evaluate whether the value of 't0' (the RHS result) is EQUAL to
+     *    zero. If it is true, jump to '.Lfalse' label and push 0 onto the
+     *    stack. If not, 1 onto the stack and terminate the process.
+     */
+    long seq = labelseq++;
+    gen(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    beq t0, x0, .Lfalse%ld\n", seq);
+    gen(node->rhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    beq t0, x0, .Lfalse%ld\n", seq);
+    // If "(LHS) "&&" (RHS)" is true.
+    printf("    addi sp, sp, -8\n");
+    printf("    li t0, 1\n");
+    printf("    sd t0, 0(sp)\n");
+    printf("    j .Lend%ld\n", seq);
+    printf(".Lfalse%ld:\n", seq);
+    printf("    addi sp, sp, -8\n");
+    printf("    li t0, 0\n");
+    printf("    sd t0, 0(sp)\n");
+    printf(".Lend%ld:\n", seq);
+    return;
+  }
   case NODE_IF: {
     long seq = labelseq++;
     /*
