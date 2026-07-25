@@ -54,6 +54,7 @@ enum NodeKind {
   NODE_ADDR,       // unary '&'
   NODE_DEREF,      // unary '*'
   NODE_NOT,        // !
+  NODE_BITNOT,     // ~
   NODE_IF,         // "if"
   NODE_WHILE,      // "while"
   NODE_FOR,        // "for"

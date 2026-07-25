@@ -189,6 +189,8 @@ static void visit(struct Node *node) {
   case NODE_ASSIGN_MUL:
     [[fallthrough]];
   case NODE_ASSIGN_DIV:
+    [[fallthrough]];
+  case NODE_BITNOT:
     node->ty = node->lhs->ty;
     return;
   case NODE_COMMA:

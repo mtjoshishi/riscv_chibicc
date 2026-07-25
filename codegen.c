@@ -357,6 +357,14 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     return;
+  case NODE_BITNOT:
+    gen(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    not t0, t0\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    return;
   case NODE_IF: {
     long seq = labelseq++;
     /*

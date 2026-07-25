@@ -1022,7 +1022,7 @@ static struct Node *cast(struct Token **token) {
 }
 
 /**
- * @brief unary = ("+" | "-" | "&" | "*" | "!")? cast
+ * @brief unary = ("+" | "-" | "&" | "*" | "!" | "~")? cast
  *              | ("++" | "--") cast
  *              | postfix
  * @param token Tokenized source code.
@@ -1040,6 +1040,8 @@ static struct Node *unary(struct Token **token) {
     return new_unary(NODE_DEREF, cast(token), *token);
   if (consume(token, "!"))
     return new_unary(NODE_NOT, cast(token), *token);
+  if (consume(token, "~"))
+    return new_unary(NODE_BITNOT, cast(token), *token);
   if (consume(token, "++"))
     return new_unary(NODE_PRE_INC, unary(token), *token);
   if (consume(token, "--"))
