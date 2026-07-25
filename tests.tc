@@ -405,6 +405,25 @@ int main() {
   assert(6, ({ int i=1; int ret=(i=i+2, i+i); ret; }), "int i=1; int ret=(i=i+2, i+i); ret;");
   assert(5, ({ int i=1; int j=2; int ret=(i=i+2, i+j); ret; }), "int i=1; int j=2; int ret=(i=i+2, i+j); ret;");
 
+  assert(3, ({ int i=2; ++i; }), "int i=2; ++i;");
+  assert(1, ({ int i=2; --i; }), "int i=2; --i;");
+  assert(2, ({ int i=2; i++; }), "int i=2; i++;");
+  assert(2, ({ int i=2; i--; }), "int i=2; i--;");
+  assert(3, ({ int i=2; i++; i; }), "int i=2; i++; i;");
+  assert(1, ({ int i=2; i--; i; }), "int i=2; i--; i;");
+
+  assert(1, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; *p++; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; *p++;");
+  assert(2, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; ++*p; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; ++*p;");
+  assert(1, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; *p--; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; *p--;");
+  assert(0, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; --*p; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; --*p;");
+
+  assert(0, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++)--; a[0]; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++); a[0];");
+  assert(0, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++)--; a[1]; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++); a[0];");
+  assert(2, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++)--; a[2]; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++); a[0];");
+  assert(2, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++)--; *p; }), "int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++); a[0];");
+
+  assert(1, ({ char a[3]; a[0]=0; a[1]=1; a[2]=2; char *p=a+1; *p++; }), "char a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; *p++;");
+
   printf("OK\n");
   return 0;
 }

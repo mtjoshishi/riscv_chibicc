@@ -1014,6 +1014,7 @@ static struct Node *cast(struct Token **token) {
 
 /**
  * @brief unary = ("+" | "-" | "&" | "*")? cast
+ *              | ("++" | "--") unary
  *              | postfix
  * @param token Tokenized source code.
  * @return Finally returns node for `primary`.
@@ -1028,10 +1029,14 @@ static struct Node *unary(struct Token **token) {
     return new_unary(NODE_ADDR, cast(token), *token);
   if (consume(token, "*"))
     return new_unary(NODE_DEREF, cast(token), *token);
+  if (consume(token, "++"))
+    return new_unary(NODE_PRE_INC, unary(token), *token);
+  if (consume(token, "--"))
+    return new_unary(NODE_PRE_DEC, unary(token), *token);
   return postfix(token);
 }
 
-// @brief postfix = primary ("[ expr ]" | "." ident | "->" ident)*
+// @brief postfix = primary ("[ expr ]" | "." ident | "->" ident | "++" | "--")*
 static struct Node *postfix(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = primary(token);
@@ -1058,6 +1063,17 @@ static struct Node *postfix(struct Token **token) {
       node->member_name = seek_if_expect_ident(token);
       continue;
     }
+
+    if (consume(token, "++")) {
+      node = new_unary(NODE_POST_INC, node, *token);
+      continue;
+    }
+
+    if (consume(token, "--")) {
+      node = new_unary(NODE_POST_DEC, node, *token);
+      continue;
+    }
+
     return node;
   }
 }

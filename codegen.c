@@ -118,16 +118,7 @@ static void store(struct Type *ty) {
 
   // Push the value of 't1'
   printf("    addi sp, sp, -8\n");
-  if (sz == 1) {
-    printf("    sb t1, 0(sp)\n");
-  } else if (sz == 2) {
-    printf("    sh t1, 0(sp)\n");
-  } else if (sz == 4) {
-    printf("    sw t1, 0(sp)\n");
-  } else {
-    CHECK(sz == 8);
-    printf("    sd t1, 0(sp)\n");
-  }
+  printf("    sd t1, 0(sp)\n");
 }
 
 /**
@@ -197,6 +188,36 @@ static void __truncate(struct Type *ty) {
   }
 }
 
+static void __increment(struct Type *ty) {
+  printf("    ld t0, 0(sp)\n");
+  printf("    addi sp, sp, 8\n");
+
+  if (ty->base != nullptr) {
+    printf("    li t1, %ld\n", __size_of(ty->base));
+    printf("    add t0, t0, t1\n");
+  } else {
+    printf("    addi t0, t0, 1\n");
+  }
+
+  printf("    addi sp, sp, -8\n");
+  printf("    sd t0, 0(sp)\n");
+}
+
+static void __decrement(struct Type *ty) {
+  printf("    ld t0, 0(sp)\n");
+  printf("    addi sp, sp, 8\n");
+
+  if (ty->base != nullptr) {
+    printf("    li t1, %ld\n", __size_of(ty->base));
+    printf("    sub t0, t0, t1\n");
+  } else {
+    printf("    addi t0, t0, -1\n");
+  }
+
+  printf("    addi sp, sp, -8\n");
+  printf("    sd t0, 0(sp)\n");
+}
+
 /**
  * @brief Generate assembly codes by traversing the AST.
  * @param node Parsed nodes of AST.
@@ -229,6 +250,45 @@ static void gen(struct Node *node) {
     gen_lval(node->lhs);
     gen(node->rhs);
     store(node->ty);
+    return;
+  case NODE_PRE_INC:
+    gen_lval(node->lhs);
+    // In x86_64, "push [rsp]".
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    load(node->ty);
+    __increment(node->ty);
+    store(node->ty);
+    return;
+  case NODE_PRE_DEC:
+    gen_lval(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    load(node->ty);
+    __decrement(node->ty);
+    store(node->ty);
+    return;
+  case NODE_POST_INC:
+    gen_lval(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    load(node->ty);
+    __increment(node->ty);
+    store(node->ty);
+    __decrement(node->ty);
+    return;
+  case NODE_POST_DEC:
+    gen_lval(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    load(node->ty);
+    __decrement(node->ty);
+    store(node->ty);
+    __increment(node->ty);
     return;
   case NODE_COMMA:
     gen(node->lhs);

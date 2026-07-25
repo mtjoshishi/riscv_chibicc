@@ -41,6 +41,10 @@ enum NodeKind {
   NODE_LT,        // <
   NODE_LE,        // <=
   NODE_ASSIGN,    // =
+  NODE_PRE_INC,   // pre ++
+  NODE_PRE_DEC,   // pre --
+  NODE_POST_INC,  // post ++
+  NODE_POST_DEC,  // post --
   NODE_COMMA,     // ,
   NODE_MEMBER,    // . (struct member access)
   NODE_ADDR,      // unary '&'
