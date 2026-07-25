@@ -290,6 +290,53 @@ static void gen(struct Node *node) {
     store(node->ty);
     __increment(node->ty);
     return;
+  case NODE_ASSIGN_ADD:
+    [[fallthrough]];
+  case NODE_ASSIGN_SUB:
+    [[fallthrough]];
+  case NODE_ASSIGN_MUL:
+    [[fallthrough]];
+  case NODE_ASSIGN_DIV:
+    gen_lval(node->lhs);
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    load(node->lhs->ty);
+    gen(node->rhs);
+    printf("    ld t1, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+    printf("    ld t0, 0(sp)\n");
+    printf("    addi sp, sp, 8\n");
+
+    switch (node->kind) {
+    case NODE_ASSIGN_ADD:
+      if (node->ty->base != nullptr) {
+        printf("    li t2, %ld\n", __size_of(node->ty->base));
+        printf("    mul t1, t1, t2\n");
+      }
+      printf("    add t0, t0, t1\n");
+      break;
+    case NODE_ASSIGN_SUB:
+      if (node->ty->base != nullptr) {
+        printf("    li t2, %ld\n", __size_of(node->ty->base));
+        printf("    mul t1, t1, t2\n");
+      }
+      printf("    sub t0, t0, t1\n");
+      break;
+    case NODE_ASSIGN_MUL:
+      printf("    mul t0, t0, t1\n");
+      break;
+    case NODE_ASSIGN_DIV:
+      printf("    div t0, t0, t1\n");
+      break;
+    default:
+      error_tok(node->tok, "Unreachable.");
+    }
+
+    printf("    addi sp, sp, -8\n");
+    printf("    sd t0, 0(sp)\n");
+    store(node->ty);
+    return;
   case NODE_COMMA:
     gen(node->lhs);
     gen(node->rhs);

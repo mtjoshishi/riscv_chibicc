@@ -179,6 +179,14 @@ static void visit(struct Node *node) {
   case NODE_POST_INC:
     [[fallthrough]];
   case NODE_POST_DEC:
+    [[fallthrough]];
+  case NODE_ASSIGN_ADD:
+    [[fallthrough]];
+  case NODE_ASSIGN_SUB:
+    [[fallthrough]];
+  case NODE_ASSIGN_MUL:
+    [[fallthrough]];
+  case NODE_ASSIGN_DIV:
     node->ty = node->lhs->ty;
     return;
   case NODE_COMMA:

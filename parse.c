@@ -898,7 +898,8 @@ static struct Node *expr(struct Token **token) {
 }
 
 /**
- * @brief assign = equality ("=" assign)?
+ * @brief assign = equality (assign-op assign)?
+ *        assign-op = "=" | "+=" | "-=" | "*=" | "/="
  * @param[in] token Tokenized source code.
  * @return Node for `assign`
  */
@@ -907,6 +908,14 @@ static struct Node *assign(struct Token **token) {
   struct Node *node = equality(token);
   if (consume(token, "="))
     node = new_binary(NODE_ASSIGN, node, assign(token), *token);
+  if (consume(token, "+="))
+    node = new_binary(NODE_ASSIGN_ADD, node, assign(token), *token);
+  if (consume(token, "-="))
+    node = new_binary(NODE_ASSIGN_SUB, node, assign(token), *token);
+  if (consume(token, "*="))
+    node = new_binary(NODE_ASSIGN_MUL, node, assign(token), *token);
+  if (consume(token, "/="))
+    node = new_binary(NODE_ASSIGN_DIV, node, assign(token), *token);
   return node;
 }
 

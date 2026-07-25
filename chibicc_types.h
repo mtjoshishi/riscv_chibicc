@@ -32,36 +32,40 @@ extern char *filename;
 struct Member;
 
 enum NodeKind {
-  NODE_ADD,       // '+'
-  NODE_SUB,       // '-'
-  NODE_MUL,       // '*'
-  NODE_DIV,       // '/'
-  NODE_EQ,        // ==
-  NODE_NE,        // !=
-  NODE_LT,        // <
-  NODE_LE,        // <=
-  NODE_ASSIGN,    // =
-  NODE_PRE_INC,   // pre ++
-  NODE_PRE_DEC,   // pre --
-  NODE_POST_INC,  // post ++
-  NODE_POST_DEC,  // post --
-  NODE_COMMA,     // ,
-  NODE_MEMBER,    // . (struct member access)
-  NODE_ADDR,      // unary '&'
-  NODE_DEREF,     // unary '*'
-  NODE_IF,        // "if"
-  NODE_WHILE,     // "while"
-  NODE_FOR,       // "for"
-  NODE_SIZEOF,    // "sizeof"
-  NODE_BLOCK,     // { ... }
-  NODE_FUNC_CALL, // Function call (zero-arity)
-  NODE_RETURN,    // "return"
-  NODE_EXPR_STMT, // Expression statement to handle void-expression.
-  NODE_STMT_EXPR, // GNU statement expression
-  NODE_VAR,       // Variable
-  NODE_NUM,       // number
-  NODE_CAST,      // Type cast
-  NODE_NULL,      // Empty statement
+  NODE_ADD,        // '+'
+  NODE_SUB,        // '-'
+  NODE_MUL,        // '*'
+  NODE_DIV,        // '/'
+  NODE_EQ,         // ==
+  NODE_NE,         // !=
+  NODE_LT,         // <
+  NODE_LE,         // <=
+  NODE_ASSIGN,     // =
+  NODE_PRE_INC,    // pre ++
+  NODE_PRE_DEC,    // pre --
+  NODE_POST_INC,   // post ++
+  NODE_POST_DEC,   // post --
+  NODE_ASSIGN_ADD, // +=
+  NODE_ASSIGN_SUB, // -=
+  NODE_ASSIGN_MUL, // *=
+  NODE_ASSIGN_DIV, // /=
+  NODE_COMMA,      // ,
+  NODE_MEMBER,     // . (struct member access)
+  NODE_ADDR,       // unary '&'
+  NODE_DEREF,      // unary '*'
+  NODE_IF,         // "if"
+  NODE_WHILE,      // "while"
+  NODE_FOR,        // "for"
+  NODE_SIZEOF,     // "sizeof"
+  NODE_BLOCK,      // { ... }
+  NODE_FUNC_CALL,  // Function call (zero-arity)
+  NODE_RETURN,     // "return"
+  NODE_EXPR_STMT,  // Expression statement to handle void-expression.
+  NODE_STMT_EXPR,  // GNU statement expression
+  NODE_VAR,        // Variable
+  NODE_NUM,        // number
+  NODE_CAST,       // Type cast
+  NODE_NULL,       // Empty statement
 };
 
 struct Type;
