@@ -36,6 +36,9 @@ enum NodeKind {
   NODE_SUB,        // '-'
   NODE_MUL,        // '*'
   NODE_DIV,        // '/'
+  NODE_BITAND,     // &
+  NODE_BITOR,      // |
+  NODE_BITXOR,     // ^
   NODE_EQ,         // ==
   NODE_NE,         // !=
   NODE_LT,         // <

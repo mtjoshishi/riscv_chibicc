@@ -496,6 +496,15 @@ static void gen(struct Node *node) {
   case NODE_DIV:
     printf("    div t0, t0, t1\n");
     break;
+  case NODE_BITAND:
+    printf("    and t0, t0, t1\n");
+    break;
+  case NODE_BITXOR:
+    printf("    xor t0, t0, t1\n");
+    break;
+  case NODE_BITOR:
+    printf("    or t0, t0, t1\n");
+    break;
   case NODE_EQ:
     printf("    sub t0, t0, t1\n");
     // Equals 'sltiu t0, t0, 1'. 'SLT' = Set less than

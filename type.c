@@ -137,6 +137,12 @@ static void visit(struct Node *node) {
     [[fallthrough]];
   case NODE_DIV:
     [[fallthrough]];
+  case NODE_BITAND:
+    [[fallthrough]];
+  case NODE_BITXOR:
+    [[fallthrough]];
+  case NODE_BITOR:
+    [[fallthrough]];
   case NODE_EQ:
     [[fallthrough]];
   case NODE_NE:

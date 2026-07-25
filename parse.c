@@ -216,6 +216,9 @@ static bool is_typename(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
 static struct Node *assign(struct Token **token);
+static struct Node *bitwiseor(struct Token **token);
+static struct Node *bitwiseand(struct Token **token);
+static struct Node *bitwisexor(struct Token **token);
 static struct Node *equality(struct Token **token);
 static struct Node *relational(struct Token **token);
 static struct Node *add(struct Token **token);
@@ -898,14 +901,14 @@ static struct Node *expr(struct Token **token) {
 }
 
 /**
- * @brief assign = equality (assign-op assign)?
+ * @brief assign = bitwise-or (assign-op assign)?
  *        assign-op = "=" | "+=" | "-=" | "*=" | "/="
  * @param[in] token Tokenized source code.
  * @return Node for `assign`
  */
 static struct Node *assign(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Node *node = equality(token);
+  struct Node *node = bitwiseor(token);
   if (consume(token, "="))
     node = new_binary(NODE_ASSIGN, node, assign(token), *token);
   if (consume(token, "+="))
@@ -916,6 +919,33 @@ static struct Node *assign(struct Token **token) {
     node = new_binary(NODE_ASSIGN_MUL, node, assign(token), *token);
   if (consume(token, "/="))
     node = new_binary(NODE_ASSIGN_DIV, node, assign(token), *token);
+  return node;
+}
+
+/// @brief bitwise-or = bitwise-xor ("|" bitwise-xor)*
+static struct Node *bitwiseor(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = bitwisexor(token);
+  while (consume(token, "|"))
+    node = new_binary(NODE_BITOR, node, bitwisexor(token), *token);
+  return node;
+}
+
+/// @brief bitwise-xor = bitwise-and ("^" bitwise-and)*
+static struct Node *bitwisexor(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = bitwiseand(token);
+  while (consume(token, "^"))
+    node = new_binary(NODE_BITXOR, node, bitwiseand(token), *token);
+  return node;
+}
+
+/// @brief bitwise-and = equality ("&" equality)*
+static struct Node *bitwiseand(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = equality(token);
+  while (consume(token, "&"))
+    node = new_binary(NODE_BITAND, node, equality(token), *token);
   return node;
 }
 
