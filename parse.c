@@ -661,6 +661,14 @@ static struct VarList *read_func_param(struct Token **token) {
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
 
+  /*
+   * 'Array of T' cis converted to 'the pointer to T' only in the parameter
+   * context. For example, '*argv[]' in 'main()' is converted to '**argv' by
+   * this.
+   */
+  if (ty->kind == TYPE_ARRAY)
+    ty = pointer_to(ty->base);
+
   struct Var *var = push_var(name, ty, true, tok);
   push_scope(name)->var = var;
 
