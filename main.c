@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     for (struct VarList *vl = func->locals; vl != nullptr; vl = vl->next) {
       struct Var *var = vl->var;
       offset = align_to(offset, var->ty->align);
-      offset += __size_of(var->ty);
+      offset += __size_of(var->ty, var->tok);
       var->offset = offset;
     }
     func->stack_size = align_to(offset, 16);

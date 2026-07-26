@@ -47,7 +47,7 @@ struct Type *enum_type(struct Type *basetype) {
   CHECK(basetype != nullptr);
   // Do not accept void, pointer, and array.
   CHECK(is_integer_type(basetype));
-  struct Type *ty = new_type(TYPE_ENUM, (int)__size_of(basetype));
+  struct Type *ty = new_type(TYPE_ENUM, (int)__size_of(basetype, nullptr));
   ty->base = basetype;
   return ty;
 }
@@ -74,9 +74,12 @@ struct Type *array_of(struct Type *base, long size) {
   return ty;
 }
 
-long __size_of(struct Type *ty) {
+long __size_of(struct Type *ty, const struct Token *token) {
   CHECK(ty != nullptr);
   CHECK(ty->kind != TYPE_VOID);
+
+  if (ty->is_incomplete)
+    error_tok(token, "Incomplete type.");
 
   switch (ty->kind) {
   case TYPE_CHAR:
@@ -88,19 +91,19 @@ long __size_of(struct Type *ty) {
   case TYPE_INT:
     return 4;
   case TYPE_ENUM:
-    return __size_of(ty->base);
+    return __size_of(ty->base, token);
   case TYPE_LONG:
     [[fallthrough]];
   case TYPE_PTR:
     return 8;
   case TYPE_ARRAY:
-    return __size_of(ty->base) * ty->array_size;
+    return __size_of(ty->base, token) * ty->array_size;
   default:
     CHECK(ty->kind == TYPE_STRUCT);
     struct Member *mem = ty->members;
     while (mem->next != nullptr)
       mem = mem->next;
-    long end = mem->offset + __size_of(mem->ty);
+    long end = mem->offset + __size_of(mem->ty, mem->tok);
     return align_to(end, ty->align);
   }
 }
@@ -231,7 +234,7 @@ static void visit(struct Node *node) {
   case NODE_SIZEOF:
     node->kind = NODE_NUM;
     node->ty = int_type();
-    node->val = __size_of(node->lhs->ty);
+    node->val = __size_of(node->lhs->ty, node->tok);
     node->lhs = nullptr;
     return;
   case NODE_STMT_EXPR: {

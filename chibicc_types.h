@@ -79,9 +79,10 @@ struct Type;
 
 // Variable
 struct Var {
-  char *name;      // Name of variable
-  struct Type *ty; // Type of variable
-  bool is_local;   // Whether the scope is global or not.
+  char *name;        // Name of variable
+  struct Type *ty;   // Type of variable
+  struct Token *tok; // To exhaust error messsges.
+  bool is_local;     // Whether the scope is global or not.
 
   // For local variables
   long offset; // Offset of the stack from the frame pointer.
@@ -146,6 +147,7 @@ struct Type {
   enum TypeKind kind;
   bool is_typedef;        // typedef
   bool is_static;         // static
+  bool is_incomplete;     // incomplete array
   int align;              // Alignment
   struct Type *base;      // Use pointer or array
   long array_size;        // size of array
@@ -157,6 +159,7 @@ struct Type {
 struct Member {
   struct Member *next;
   struct Type *ty;
+  struct Token *tok; // To exhaust error messages.
   char *name;
   long offset;
 };

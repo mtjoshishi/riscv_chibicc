@@ -27,11 +27,30 @@ struct TagScope {
   struct Type *ty;
 };
 
+struct Scope {
+  struct VarScope *var_scope;
+  struct TagScope *tag_scope;
+};
+
 struct VarList *locals;
 struct VarList *globals;
 
 struct VarScope *var_scope;
 struct TagScope *tag_scope;
+
+static struct Scope *enter_scope() {
+  struct Scope *sc = calloc(1, sizeof(*sc));
+  CHECK(sc != nullptr);
+  sc->var_scope = var_scope;
+  sc->tag_scope = tag_scope;
+  return sc;
+}
+
+static void leave_scope(struct Scope *sc) {
+  CHECK(sc != nullptr);
+  var_scope = sc->var_scope;
+  tag_scope = sc->tag_scope;
+}
 
 /// @brief Find a variable or a typedef by name.
 static struct VarScope *find_var(const struct Token *token) {
@@ -153,14 +172,17 @@ static struct VarScope *push_scope(char *name) {
  * @param name The name of local variable.
  * @param ty The type of local variable.
  * @param is_local Whether the scope of variable is in local or global.
+ * @param tok The token referenced by the specified var.
  * @return Local variable object.
  */
-struct Var *push_var(char *name, struct Type *ty, bool is_local) {
+struct Var *push_var(char *name, struct Type *ty, bool is_local,
+                     struct Token *tok) {
   struct Var *var = calloc(1, sizeof(*var));
   CHECK(var != nullptr);
   var->name = name;
   var->ty = ty;
   var->is_local = is_local;
+  var->tok = tok;
 
   struct VarList *vl = calloc(1, sizeof(*vl));
   CHECK(vl != nullptr);
@@ -439,7 +461,7 @@ static struct Type *abstract_declarator(struct Token **token, struct Type *ty) {
 }
 
 /**
- * @brief type-suffix = ("[" num "]" type-suffix)?
+ * @brief type-suffix = ("[" num? "]" type-suffix)?
  * @param token The tokenized token.
  * @param ty The representative 'type' object.
  * @return 'struct Type': type-suffix.
@@ -449,10 +471,19 @@ static struct Type *type_suffix(struct Token **token, struct Type *ty) {
   CHECK(ty != nullptr);
   if (!consume(token, "["))
     return ty;
-  long sz = seek_if_expect_number(token);
-  seek_if_expect(token, "]");
+
+  long sz = 0;
+  bool is_incomplete = true;
+  if (!consume(token, "]")) {
+    sz = seek_if_expect_number(token);
+    is_incomplete = false;
+    seek_if_expect(token, "]");
+  }
+
   ty = type_suffix(token, ty);
-  return array_of(ty, sz);
+  ty = array_of(ty, sz);
+  ty->is_incomplete = is_incomplete;
+  return ty;
 }
 
 /**
@@ -523,7 +554,7 @@ static struct Type *struct_decl(struct Token **token) {
   for (struct Member *mem = ty->members; mem != nullptr; mem = mem->next) {
     offset = align_to(offset, mem->ty->align);
     mem->offset = offset;
-    offset += __size_of(mem->ty);
+    offset += __size_of(mem->ty, mem->tok);
 
     if (ty->align < mem->ty->align)
       ty->align = mem->ty->align;
@@ -609,6 +640,7 @@ static struct Member *member_declaration_list(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
 
   struct Type *ty = type_specifier(token);
+  struct Token *tok = *token;
   char *name = nullptr;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
@@ -617,6 +649,7 @@ static struct Member *member_declaration_list(struct Token **token) {
   struct Member *mem = calloc(1, sizeof(*mem));
   mem->name = name;
   mem->ty = ty;
+  mem->tok = tok;
   return mem;
 }
 
@@ -624,10 +657,11 @@ static struct VarList *read_func_param(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Type *ty = type_specifier(token);
   char *name = nullptr;
+  struct Token *tok = *token;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
 
-  struct Var *var = push_var(name, ty, true);
+  struct Var *var = push_var(name, ty, true, tok);
   push_scope(name)->var = var;
 
   struct VarList *vl = calloc(1, sizeof(*vl));
@@ -664,11 +698,12 @@ static void global_var(struct Token **token) {
 
   struct Type *ty = type_specifier(token);
   char *name = nullptr;
+  struct Token *tok = *token;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
   seek_if_expect(token, ";");
 
-  struct Var *var = push_var(name, ty, false);
+  struct Var *var = push_var(name, ty, false, tok);
   push_scope(name)->var = var;
 }
 
@@ -687,10 +722,11 @@ static struct Function *function(struct Token **token) {
 
   struct Type *ty = type_specifier(token);
   char *name = nullptr;
+  struct Token *tok = *token;
   ty = declarator(token, ty, &name);
 
   // Add a function type to the scope
-  struct Var *var = push_var(name, func_type(ty), false);
+  struct Var *var = push_var(name, func_type(ty), false, tok);
   push_scope(name)->var = var;
 
   // Construct a function object.
@@ -728,11 +764,11 @@ static struct Function *function(struct Token **token) {
 static struct Node *declaration(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
 
-  struct Token *tok = *token;
   struct Type *ty = type_specifier(token);
   if (consume(token, ";"))
-    return new_node(NODE_NULL, tok);
+    return new_node(NODE_NULL, *token);
 
+  struct Token *tok = *token;
   char *name = nullptr;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
@@ -749,9 +785,9 @@ static struct Node *declaration(struct Token **token) {
 
   struct Var *var = nullptr;
   if (is_static_type(ty))
-    var = push_var(new_label(), ty, false);
+    var = push_var(new_label(), ty, false, tok);
   else
-    var = push_var(name, ty, true);
+    var = push_var(name, ty, true, tok);
   push_scope(name)->var = var;
 
   if (consume(token, ";"))
@@ -826,8 +862,7 @@ static struct Node *stmt(struct Token **token) {
 
     seek_if_expect(token, "(");
 
-    struct VarScope *vsc = var_scope;
-    struct TagScope *tsc = tag_scope;
+    struct Scope *sc = enter_scope();
 
     if (!consume(token, ";")) {
       if (is_typename(token)) {
@@ -849,8 +884,7 @@ static struct Node *stmt(struct Token **token) {
     }
     node->then = stmt(token);
 
-    var_scope = vsc;
-    tag_scope = tsc;
+    leave_scope(sc);
     return node;
   }
 
@@ -860,8 +894,7 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
-  struct VarScope *vsc = var_scope;
-  struct TagScope *tag_sc = tag_scope;
+  struct Scope *sc = enter_scope();
   if (consume(token, "{")) {
     struct Node head = {};
     head.next = nullptr;
@@ -871,8 +904,7 @@ static struct Node *stmt(struct Token **token) {
       cur->next = stmt(token);
       cur = cur->next;
     }
-    var_scope = vsc;
-    tag_scope = tag_sc;
+    leave_scope(sc);
 
     struct Node *node = new_node(NODE_BLOCK, *token);
     node->body = head.next;
@@ -1149,9 +1181,8 @@ static struct Node *postfix(struct Token **token) {
  */
 static struct Node *stmt_expr(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct VarScope *var_sc = var_scope;
-  struct TagScope *tag_sc = tag_scope;
 
+  struct Scope *sc = enter_scope();
   struct Node *node = new_node(NODE_STMT_EXPR, *token);
   node->body = stmt(token);
   struct Node *cur = node->body;
@@ -1161,9 +1192,7 @@ static struct Node *stmt_expr(struct Token **token) {
     cur = cur->next;
   }
   seek_if_expect(token, ")");
-
-  var_scope = var_sc;
-  tag_scope = tag_sc;
+  leave_scope(sc);
 
   if (cur->kind != NODE_EXPR_STMT)
     error_tok(cur->tok,
@@ -1216,7 +1245,7 @@ static struct Node *primary(struct Token **token) {
       if (is_typename(token)) {
         struct Type *ty = type_name(token);
         seek_if_expect(token, ")");
-        return new_num(__size_of(ty), tok);
+        return new_num(__size_of(ty, tok), tok);
       }
       *token = tok->next;
     }
@@ -1256,7 +1285,7 @@ static struct Node *primary(struct Token **token) {
     (*token) = (*token)->next;
 
     struct Type *ty = array_of(char_type(), tok->content_len);
-    struct Var *var = push_var(new_label(), ty, false);
+    struct Var *var = push_var(new_label(), ty, false, nullptr);
     var->contents = tok->contents;
     var->content_len = tok->content_len;
     return new_var(var, tok);

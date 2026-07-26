@@ -20,7 +20,7 @@ struct Type *enum_type(struct Type *basetype);
 struct Type *func_type(struct Type *return_ty);
 struct Type *pointer_to(struct Type *base);
 struct Type *array_of(struct Type *base, long size);
-long __size_of(struct Type *ty);
+long __size_of(struct Type *ty, const struct Token *token);
 
 void add_type(struct Program *prog);
 

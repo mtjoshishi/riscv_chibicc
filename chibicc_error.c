@@ -78,7 +78,7 @@ void error_at(const char *user_input, const char *loc, const char *fmt, ...) {
  * @param loc Location where the error occurs.
  * @param fmt Format string of error message.
  */
-void error_tok(struct Token *token, char *fmt, ...) {
+void error_tok(const struct Token *token, char *fmt, ...) {
   CHECK(token != nullptr);
   va_list ap;
   va_start(ap, fmt);

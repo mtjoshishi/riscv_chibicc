@@ -74,7 +74,7 @@ static void load(struct Type *ty) {
   printf("    ld t0, 0(sp)\n");
 
   // Read the value and assign to 't0'.
-  long sz = __size_of(ty);
+  long sz = __size_of(ty, nullptr);
   if (sz == 1) {
     printf("    lb t0, 0(t0)\n");
   } else if (sz == 2) {
@@ -104,7 +104,7 @@ static void store(struct Type *ty) {
     printf("    snez t1, t1\n");
 
   // Assign the value of 't1' into the address of 't0'
-  long sz = __size_of(ty);
+  long sz = __size_of(ty, nullptr);
   if (sz == 1) {
     printf("    sb t1, 0(t0)\n");
   } else if (sz == 2) {
@@ -175,7 +175,7 @@ static void __truncate(struct Type *ty) {
    * (lb/lh/lw) into a register, and then write the entire 64-bit (8-byte)
    * result back to the stack using `sd`.
    */
-  long sz = __size_of(ty);
+  long sz = __size_of(ty, nullptr);
   if (sz == 1) {
     printf("    lb t0, 0(sp)\n");
     printf("    sd t0, 0(sp)\n");
@@ -188,12 +188,12 @@ static void __truncate(struct Type *ty) {
   }
 }
 
-static void __increment(struct Type *ty) {
+static void __increment(struct Node *node) {
   printf("    ld t0, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
 
-  if (ty->base != nullptr) {
-    printf("    li t1, %ld\n", __size_of(ty->base));
+  if (node->ty->base != nullptr) {
+    printf("    li t1, %ld\n", __size_of(node->ty->base, node->tok));
     printf("    add t0, t0, t1\n");
   } else {
     printf("    addi t0, t0, 1\n");
@@ -203,12 +203,12 @@ static void __increment(struct Type *ty) {
   printf("    sd t0, 0(sp)\n");
 }
 
-static void __decrement(struct Type *ty) {
+static void __decrement(struct Node *node) {
   printf("    ld t0, 0(sp)\n");
   printf("    addi sp, sp, 8\n");
 
-  if (ty->base != nullptr) {
-    printf("    li t1, %ld\n", __size_of(ty->base));
+  if (node->ty->base != nullptr) {
+    printf("    li t1, %ld\n", __size_of(node->ty->base, node->tok));
     printf("    sub t0, t0, t1\n");
   } else {
     printf("    addi t0, t0, -1\n");
@@ -258,7 +258,7 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     load(node->ty);
-    __increment(node->ty);
+    __increment(node);
     store(node->ty);
     return;
   case NODE_PRE_DEC:
@@ -267,7 +267,7 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     load(node->ty);
-    __decrement(node->ty);
+    __decrement(node);
     store(node->ty);
     return;
   case NODE_POST_INC:
@@ -276,9 +276,9 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     load(node->ty);
-    __increment(node->ty);
+    __increment(node);
     store(node->ty);
-    __decrement(node->ty);
+    __decrement(node);
     return;
   case NODE_POST_DEC:
     gen_lval(node->lhs);
@@ -286,9 +286,9 @@ static void gen(struct Node *node) {
     printf("    addi sp, sp, -8\n");
     printf("    sd t0, 0(sp)\n");
     load(node->ty);
-    __decrement(node->ty);
+    __decrement(node);
     store(node->ty);
-    __increment(node->ty);
+    __increment(node);
     return;
   case NODE_ASSIGN_ADD:
     [[fallthrough]];
@@ -311,14 +311,14 @@ static void gen(struct Node *node) {
     switch (node->kind) {
     case NODE_ASSIGN_ADD:
       if (node->ty->base != nullptr) {
-        printf("    li t2, %ld\n", __size_of(node->ty->base));
+        printf("    li t2, %ld\n", __size_of(node->ty->base, node->tok));
         printf("    mul t1, t1, t2\n");
       }
       printf("    add t0, t0, t1\n");
       break;
     case NODE_ASSIGN_SUB:
       if (node->ty->base != nullptr) {
-        printf("    li t2, %ld\n", __size_of(node->ty->base));
+        printf("    li t2, %ld\n", __size_of(node->ty->base, node->tok));
         printf("    mul t1, t1, t2\n");
       }
       printf("    sub t0, t0, t1\n");
@@ -545,14 +545,14 @@ static void gen(struct Node *node) {
   switch (node->kind) {
   case NODE_ADD:
     if (node->ty->base != nullptr) {
-      printf("    li t2, %ld\n", __size_of(node->ty->base));
+      printf("    li t2, %ld\n", __size_of(node->ty->base, node->tok));
       printf("    mul t1, t1, t2\n");
     }
     printf("    add t0, t0, t1\n");
     break;
   case NODE_SUB:
     if (node->ty->base != nullptr) {
-      printf("    li t2, %ld\n", __size_of(node->ty->base));
+      printf("    li t2, %ld\n", __size_of(node->ty->base, node->tok));
       printf("    mul t1, t1, t2\n");
     }
     printf("    sub t0, t0, t1\n");
@@ -604,7 +604,7 @@ static void gen(struct Node *node) {
 }
 
 static void load_arg(struct Var *var, int idx) {
-  long sz = __size_of(var->ty);
+  long sz = __size_of(var->ty, var->tok);
   if (sz == 1) {
     printf("    sb %s, %ld(fp)\n", argreg[idx], -(16 + var->offset));
   } else if (sz == 2) {
@@ -627,7 +627,7 @@ static void emit_data(struct Program *prog) {
     printf("%s:\n", var->name);
 
     if (var->contents == nullptr) {
-      printf("    .zero %ld\n", __size_of(var->ty));
+      printf("    .zero %ld\n", __size_of(var->ty, var->tok));
       continue;
     }
 
