@@ -13,6 +13,7 @@ char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
 
 // The number of label to go to the end of selection statement.
 long labelseq = 0;
+long brkseq;
 char *func_name = "";
 
 static void gen(struct Node *node);
@@ -461,18 +462,30 @@ static void gen(struct Node *node) {
   }
   case NODE_WHILE: {
     long seq = labelseq++;
+    long brk = brkseq;
+    brkseq = seq;
+
     printf(".Lbegin%ld:\n", seq);
     gen(node->cond);
     printf("    ld t0, 0(sp)\n");
     printf("    addi sp, sp, 8\n");
-    printf("    beqz t0, .Lend%ld\n", seq);
+    printf("    beqz t0, .L.break.%ld\n", seq);
     gen(node->then);
     printf("    j .Lbegin%ld\n", seq);
-    printf(".Lend%ld:\n", seq);
+    printf(".L.break.%ld:\n", seq);
+    /*
+     * Although it serves no purpose, a 'nop' instruction is output to match the
+     * behavior of gcc and other compilers.
+     */
+    printf("    nop\n");
+
+    brkseq = brk;
     return;
   }
   case NODE_FOR: {
     long seq = labelseq++;
+    long brk = brkseq;
+    brkseq = seq;
 
     if ((node->init) != nullptr)
       gen(node->init);
@@ -483,7 +496,7 @@ static void gen(struct Node *node) {
       gen(node->cond);
       printf("    ld t0, 0(sp)\n");
       printf("    addi sp, sp, 8\n");
-      printf("    beqz t0, .Lend%ld\n", seq);
+      printf("    beqz t0, .L.break.%ld\n", seq);
     }
 
     gen(node->then);
@@ -492,7 +505,9 @@ static void gen(struct Node *node) {
       gen(node->increment);
 
     printf("    j .Lbegin%ld\n", seq);
-    printf(".Lend%ld:\n", seq);
+    printf(".L.break.%ld:\n", seq);
+    printf("    nop\n");
+    brkseq = brk;
     return;
   }
   case NODE_BLOCK:
@@ -500,6 +515,11 @@ static void gen(struct Node *node) {
   case NODE_STMT_EXPR:
     for (struct Node *n = node->body; n; n = n->next)
       gen(n);
+    return;
+  case NODE_BREAK:
+    if (brkseq == 0)
+      error_tok(node->tok, "Stray break statement.");
+    printf("    j .L.break.%ld\n", brkseq);
     return;
   case NODE_FUNC_CALL: {
     int args_cnt = 0;

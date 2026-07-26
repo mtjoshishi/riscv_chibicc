@@ -65,6 +65,7 @@ enum NodeKind {
   NODE_FOR,        // "for"
   NODE_SIZEOF,     // "sizeof"
   NODE_BLOCK,      // { ... }
+  NODE_BREAK,      // "break"
   NODE_FUNC_CALL,  // Function call (zero-arity)
   NODE_RETURN,     // "return"
   NODE_EXPR_STMT,  // Expression statement to handle void-expression.
