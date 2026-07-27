@@ -527,6 +527,13 @@ static void gen(struct Node *node) {
       error_tok(node->tok, "Stray continue statement.");
     printf("    j .L.continue.%ld\n", contseq);
     return;
+  case NODE_GOTO:
+    printf("    j .L.label.%s.%s\n", func_name, node->label_name);
+    return;
+  case NODE_LABEL:
+    printf(".L.label.%s.%s:\n", func_name, node->label_name);
+    gen(node->lhs);
+    return;
   case NODE_FUNC_CALL: {
     int args_cnt = 0;
     for (struct Node *arg = node->args; arg != nullptr; arg = arg->next) {

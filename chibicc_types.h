@@ -67,6 +67,8 @@ enum NodeKind {
   NODE_BLOCK,      // { ... }
   NODE_BREAK,      // "break"
   NODE_CONTINUE,   // "continue"
+  NODE_GOTO,       // "goto"
+  NODE_LABEL,      // Labeled statement
   NODE_FUNC_CALL,  // Function call (zero-arity)
   NODE_RETURN,     // "return"
   NODE_EXPR_STMT,  // Expression statement to handle void-expression.
@@ -126,6 +128,9 @@ struct Node {
   // Name of calling function
   char *funcname;
   struct Node *args;
+
+  // Goto or labeled statement
+  char *label_name;
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   long val;        // Value if kind is NODE_NUM
