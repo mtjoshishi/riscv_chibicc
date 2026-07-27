@@ -19,6 +19,33 @@ char *func_name = "";
 
 static void gen(struct Node *node);
 
+/**
+ * @brief Push the value of register onto the top of the stack ('sp').
+ * The stack grows downwards (towards lower address). In our chibicc, the unit
+ * size of the stack is 8-bytes, even if the alignment of the value is not
+ * 8-bytes.
+ *
+ * @param reg The register to push its value onto the stack.
+ */
+static void push(const char *reg) {
+  CHECK(reg != nullptr);
+  printf("    addi sp, sp, -8\n");
+  printf("    sd %s, 0(sp)\n", reg);
+}
+
+/**
+ * @brief Pop the value from the top of the stack ('sp'), and assign to a
+ * specified register. The value is loaded as an 8-bytes value, and then the
+ * stack grows upwards (towards higher address) in 8-bytes unit.
+ *
+ * @param reg The register to assign the value from the top of the stack.
+ */
+static void pop(const char *reg) {
+  CHECK(reg != nullptr);
+  printf("    ld %s, 0(sp)\n", reg);
+  printf("    addi sp, sp, 8\n");
+}
+
 /// @brief Generate local variable into the stack.
 static void gen_addr(struct Node *node) {
   CHECK(node != nullptr);
@@ -26,7 +53,7 @@ static void gen_addr(struct Node *node) {
   case NODE_VAR: {
     struct Var *var = node->var;
     long offset = -(16 + var->offset);
-    if (var->is_local)
+    if (var->is_local) {
       /*
        * RISC-V's integer immediate instructions accept 12-bit signed integers.
        * Since overflow is ignored, numbers less than -2048 or greater than 2047
@@ -39,10 +66,10 @@ static void gen_addr(struct Node *node) {
         printf("    li t1, %ld\n", offset);
         printf("    add t0, fp, t1\n");
       }
-    else
+    } else {
       printf("    lla t0, %s\n", var->name);
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    }
+    push("t0");
     return;
   }
   case NODE_DEREF:
@@ -95,12 +122,9 @@ static void load(struct Type *ty) {
 /// @brief Store the data onto the stack.
 static void store(struct Type *ty) {
   // Pop the rvalue from the top of stack.
-  printf("    ld t1, 0(sp)\n");
-  printf("    addi sp, sp, 8\n");
-
+  pop("t1");
   // Pop the lvalue from the top of stack.
-  printf("    ld t0, 0(sp)\n");
-  printf("    addi sp, sp, 8\n");
+  pop("t0");
 
   if (ty->kind == TYPE_BOOL)
     printf("    snez t1, t1\n");
@@ -119,8 +143,7 @@ static void store(struct Type *ty) {
   }
 
   // Push the value of 't1'
-  printf("    addi sp, sp, -8\n");
-  printf("    sd t1, 0(sp)\n");
+  push("t1");
 }
 
 /**
@@ -191,8 +214,7 @@ static void __truncate(struct Type *ty) {
 }
 
 static void __increment(struct Node *node) {
-  printf("    ld t0, 0(sp)\n");
-  printf("    addi sp, sp, 8\n");
+  pop("t0");
 
   if (node->ty->base != nullptr) {
     printf("    li t1, %ld\n", __size_of(node->ty->base, node->tok));
@@ -201,13 +223,11 @@ static void __increment(struct Node *node) {
     printf("    addi t0, t0, 1\n");
   }
 
-  printf("    addi sp, sp, -8\n");
-  printf("    sd t0, 0(sp)\n");
+  push("t0");
 }
 
 static void __decrement(struct Node *node) {
-  printf("    ld t0, 0(sp)\n");
-  printf("    addi sp, sp, 8\n");
+  pop("t0");
 
   if (node->ty->base != nullptr) {
     printf("    li t1, %ld\n", __size_of(node->ty->base, node->tok));
@@ -216,8 +236,7 @@ static void __decrement(struct Node *node) {
     printf("    addi t0, t0, -1\n");
   }
 
-  printf("    addi sp, sp, -8\n");
-  printf("    sd t0, 0(sp)\n");
+  push("t0");
 }
 
 /**
@@ -232,14 +251,12 @@ static void gen(struct Node *node) {
     return;
   case NODE_NUM:
     printf("    li t0, %ld\n", node->val);
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    push("t0");
     return;
   case NODE_EXPR_STMT:
     gen(node->lhs);
     // Removed the evaluated result in progress from the top of stack.
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     return;
   case NODE_VAR:
     [[fallthrough]];
@@ -305,10 +322,8 @@ static void gen(struct Node *node) {
     printf("    sd t0, 0(sp)\n");
     load(node->lhs->ty);
     gen(node->rhs);
-    printf("    ld t1, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t1");
+    pop("t0");
 
     switch (node->kind) {
     case NODE_ASSIGN_ADD:
@@ -335,8 +350,7 @@ static void gen(struct Node *node) {
       error_tok(node->tok, "Unreachable.");
     }
 
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    push("t0");
     store(node->ty);
     return;
   case NODE_COMMA:
@@ -353,19 +367,15 @@ static void gen(struct Node *node) {
     return;
   case NODE_NOT:
     gen(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     printf("    seqz t0, t0\n");
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    push("t0");
     return;
   case NODE_BITNOT:
     gen(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     printf("    not t0, t0\n");
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    push("t0");
     return;
   case NODE_LOGOR: {
     /*
@@ -382,12 +392,10 @@ static void gen(struct Node *node) {
      */
     long seq = labelseq++;
     gen(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     printf("    bne t0, x0, .Ltrue%ld\n", seq);
     gen(node->rhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     printf("    beq t0, x0, .Lfalse%ld\n", seq);
     printf(".Ltrue%ld:\n", seq);
     printf("    addi sp, sp, -8\n");
@@ -415,12 +423,10 @@ static void gen(struct Node *node) {
      */
     long seq = labelseq++;
     gen(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     printf("    beq t0, x0, .Lfalse%ld\n", seq);
     gen(node->rhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     printf("    beq t0, x0, .Lfalse%ld\n", seq);
     // If "(LHS) "&&" (RHS)" is true.
     printf("    addi sp, sp, -8\n");
@@ -443,8 +449,7 @@ static void gen(struct Node *node) {
      */
     if (node->els != nullptr) {
       gen(node->cond);
-      printf("    ld t0, 0(sp)\n");
-      printf("    addi sp, sp, 8\n");
+      pop("t0");
       printf("    beqz t0, .Lelse%ld\n", seq);
       gen(node->then);
       printf("    j .Lend%ld\n", seq);
@@ -453,8 +458,7 @@ static void gen(struct Node *node) {
       printf(".Lend%ld:\n", seq);
     } else {
       gen(node->cond);
-      printf("    ld t0, 0(sp)\n");
-      printf("    addi sp, sp, 8\n");
+      pop("t0");
       printf("    beqz t0, .Lend%ld\n", seq);
       gen(node->then);
       printf(".Lend%ld:\n", seq);
@@ -469,8 +473,7 @@ static void gen(struct Node *node) {
 
     printf(".L.continue.%ld:\n", seq);
     gen(node->cond);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("t0");
     printf("    beqz t0, .L.break.%ld\n", seq);
     gen(node->then);
     printf("    j .L.continue.%ld\n", seq);
@@ -493,8 +496,7 @@ static void gen(struct Node *node) {
 
     if ((node->cond) != nullptr) {
       gen(node->cond);
-      printf("    ld t0, 0(sp)\n");
-      printf("    addi sp, sp, 8\n");
+      pop("t0");
       printf("    beqz t0, .L.break.%ld\n", seq);
     }
 
@@ -547,16 +549,14 @@ static void gen(struct Node *node) {
     }
 
     printf("    call %s\n", node->funcname);
-    printf("    addi sp, sp, -8\n");
-    printf("    sd a0, 0(sp)\n");
+    push("a0");
 
     __truncate(node->ty);
     return;
   }
   case NODE_RETURN:
     gen(node->lhs);
-    printf("    ld a0, 0(sp)\n");
-    printf("    addi sp, sp, 8\n");
+    pop("a0");
     printf("    j .Lreturn.%s\n", func_name);
     return;
   case NODE_CAST:
@@ -570,10 +570,8 @@ static void gen(struct Node *node) {
   gen(node->lhs);
   gen(node->rhs);
 
-  printf("    ld t1, 0(sp)\n");
-  printf("    addi sp, sp, 8\n");
-  printf("    ld t0, 0(sp)\n");
-  printf("    addi sp, sp, 8\n");
+  pop("t1");
+  pop("t0");
 
   switch (node->kind) {
   case NODE_ADD:
@@ -632,8 +630,7 @@ static void gen(struct Node *node) {
   }
 
   // Push the temporary calculated results into t0 register.
-  printf("    addi sp, sp, -8\n");
-  printf("    sd t0, 0(sp)\n");
+  push("t0");
 }
 
 static void load_arg(struct Var *var, int idx) {
