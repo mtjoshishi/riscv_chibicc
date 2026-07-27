@@ -14,6 +14,7 @@ char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
 // The number of label to go to the end of selection statement.
 long labelseq = 0;
 long brkseq;
+long contseq;
 char *func_name = "";
 
 static void gen(struct Node *node);
@@ -463,29 +464,27 @@ static void gen(struct Node *node) {
   case NODE_WHILE: {
     long seq = labelseq++;
     long brk = brkseq;
-    brkseq = seq;
+    long cont = contseq;
+    brkseq = contseq = seq;
 
-    printf(".Lbegin%ld:\n", seq);
+    printf(".L.continue.%ld:\n", seq);
     gen(node->cond);
     printf("    ld t0, 0(sp)\n");
     printf("    addi sp, sp, 8\n");
     printf("    beqz t0, .L.break.%ld\n", seq);
     gen(node->then);
-    printf("    j .Lbegin%ld\n", seq);
+    printf("    j .L.continue.%ld\n", seq);
     printf(".L.break.%ld:\n", seq);
-    /*
-     * Although it serves no purpose, a 'nop' instruction is output to match the
-     * behavior of gcc and other compilers.
-     */
-    printf("    nop\n");
 
     brkseq = brk;
+    contseq = cont;
     return;
   }
   case NODE_FOR: {
     long seq = labelseq++;
     long brk = brkseq;
-    brkseq = seq;
+    long cont = contseq;
+    brkseq = contseq = seq;
 
     if ((node->init) != nullptr)
       gen(node->init);
@@ -500,14 +499,16 @@ static void gen(struct Node *node) {
     }
 
     gen(node->then);
+    printf(".L.continue.%ld:\n", seq);
+    printf("    nop\n");
 
     if ((node->increment) != nullptr)
       gen(node->increment);
 
     printf("    j .Lbegin%ld\n", seq);
     printf(".L.break.%ld:\n", seq);
-    printf("    nop\n");
     brkseq = brk;
+    contseq = cont;
     return;
   }
   case NODE_BLOCK:
@@ -520,6 +521,11 @@ static void gen(struct Node *node) {
     if (brkseq == 0)
       error_tok(node->tok, "Stray break statement.");
     printf("    j .L.break.%ld\n", brkseq);
+    return;
+  case NODE_CONTINUE:
+    if (contseq == 0)
+      error_tok(node->tok, "Stray continue statement.");
+    printf("    j .L.continue.%ld\n", contseq);
     return;
   case NODE_FUNC_CALL: {
     int args_cnt = 0;

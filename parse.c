@@ -827,6 +827,7 @@ static bool is_typename(struct Token **token) {
  * @brief stmt = expr ";"
  *             | "{" stmt "}"
  *             | "break" ";"
+ *             | "continue" ";"
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" (expr? ";" | declaration) expr? ";" expr ";" )" stmt
@@ -924,6 +925,12 @@ static struct Node *stmt(struct Token **token) {
     struct Token *tok = *token;
     seek_if_expect(token, ";");
     return new_node(NODE_BREAK, tok);
+  }
+
+  if (consume(token, "continue")) {
+    struct Token *tok = *token;
+    seek_if_expect(token, ";");
+    return new_node(NODE_CONTINUE, tok);
   }
 
   if (is_typename(token))
