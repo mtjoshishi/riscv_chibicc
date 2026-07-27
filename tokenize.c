@@ -157,7 +157,8 @@ static char *starts_with_reserved_keyword(const char *p) {
   static char *kw[] = {"return", "if",     "else",     "while", "for",
                        "sizeof", "struct", "typedef",  "char",  "short",
                        "int",    "long",   "void",     "_Bool", "enum",
-                       "static", "break",  "continue", "goto"};
+                       "static", "break",  "continue", "goto",  "switch",
+                       "case",   "default"};
 
   for (size_t i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     size_t reserved_kw_len = strlen(kw[i]);

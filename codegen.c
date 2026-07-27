@@ -12,7 +12,7 @@
 char *argreg[] = {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
 
 // The number of label to go to the end of selection statement.
-long labelseq = 0;
+long labelseq = 1;
 long brkseq;
 long contseq;
 char *func_name = "";
@@ -513,6 +513,40 @@ static void gen(struct Node *node) {
     contseq = cont;
     return;
   }
+  case NODE_SWITCH: {
+    long seq = labelseq++;
+    long brk = brkseq;
+    brkseq = seq;
+    node->case_label = seq;
+
+    gen(node->cond);
+    pop("t0");
+
+    for (struct Node *n = node->case_next; n != nullptr; n = n->case_next) {
+      n->case_label = labelseq++;
+      n->case_end_label = seq;
+      printf("    li t2, %ld\n", n->val);
+      printf("    beq t0, t2, .L.case.%ld\n", n->case_label);
+    }
+
+    if (node->default_case != nullptr) {
+      long i = labelseq++;
+      node->default_case->case_end_label = seq;
+      node->default_case->case_label = i;
+      printf("    j .L.case.%ld\n", i);
+    }
+
+    printf("    j .L.break.%ld\n", seq);
+    gen(node->then);
+    printf(".L.break.%ld:\n", seq);
+
+    brkseq = brk;
+    return;
+  }
+  case NODE_CASE:
+    printf(".L.case.%ld:\n", node->case_label);
+    gen(node->lhs);
+    return;
   case NODE_BLOCK:
     [[fallthrough]];
   case NODE_STMT_EXPR:

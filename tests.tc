@@ -491,6 +491,15 @@ int main() {
   assert(11, ({ int i = 0; typedef int t; enum s : t { zero=0, one, }; enum s x = zero; if (x == zero) goto j; else goto k; j: i=10; k: i++; i; }),
         "int i = 0; typedef int t; enum s : t { zero=0, one, }; enum s x = zero; if (x == zero) goto j; else goto k; j: i=10; k: i++; i;");
 
+  assert(5, ({ int i=0; switch(0) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i; }), "int i=0; switch(0) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i;");
+  assert(6, ({ int i=0; switch(1) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i; }), "int i=0; switch(1) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i;");
+  assert(7, ({ int i=0; switch(2) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i; }), "int i=0; switch(2) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i;");
+  assert(0, ({ int i=0; switch(3) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i; }), "int i=0; switch(3) { case 0: i=5; break; case 1: i=6; break; case 2: i=7; break; } i;");
+  assert(5, ({ int i=0; switch(0) { case 0: i=5; break; default: i=7; } i; }), "int i=0; switch(0) { case 0:i=5; break; default: i=7; } i;");
+  assert(7, ({ int i=0; switch(1) { case 0: i=5; break; default: i=7; } i; }), "int i=0; switch(1) { case 0:i=5; break; default: i=7; } i;");
+  assert(8, ({ int i=5; switch(0) { case 0: i++; case 1: i++; case 2: i++; } i; }), "int i=5; switch(0) { case 0: i++; case 1: i++; case 2: i++; } i;");
+  assert(6, ({ int i=5; switch(2) { case 0: i++; case 1: i++; default: i++; } i; }), "int i=5; switch(2) { case 0: i++; case 1: i++; default: i++; } i;");
+
   printf("OK\n");
   return 0;
 }

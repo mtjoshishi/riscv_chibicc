@@ -38,6 +38,8 @@ struct VarList *globals;
 struct VarScope *var_scope;
 struct TagScope *tag_scope;
 
+struct Node *current_switch = nullptr;
+
 static struct Scope *enter_scope() {
   struct Scope *sc = calloc(1, sizeof(*sc));
   CHECK(sc != nullptr);
@@ -831,6 +833,8 @@ static bool is_typename(struct Token **token) {
  *             | ident ":" stmt
  *             | "continue" ";"
  *             | "if" "(" expr ")" stmt ("else" stmt)?
+ *             | "switch" "(" expr ")" stmt
+ *             | "case" num ":" stmt
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" (expr? ";" | declaration) expr? ";" expr ";" )" stmt
  *             | declaration
@@ -853,6 +857,45 @@ static struct Node *stmt(struct Token **token) {
     if (consume(token, "else"))
       node->els = stmt(token);
 
+    return node;
+  }
+
+  struct Token *tok = *token;
+  if (consume(token, "switch")) {
+    struct Node *node = new_node(NODE_SWITCH, tok);
+    seek_if_expect(token, "(");
+    node->cond = expr(token);
+    seek_if_expect(token, ")");
+
+    struct Node *sw = current_switch;
+    current_switch = node;
+    node->then = stmt(token);
+    current_switch = sw;
+    return node;
+  }
+
+  tok = *token;
+  if (consume(token, "case")) {
+    if (current_switch == nullptr)
+      error_tok(tok, "'case' statement not in switch statement");
+    long val = seek_if_expect_number(token);
+    seek_if_expect(token, ":");
+
+    struct Node *node = new_unary(NODE_CASE, stmt(token), tok);
+    node->val = val;
+    node->case_next = current_switch->case_next;
+    current_switch->case_next = node;
+    return node;
+  }
+
+  tok = *token;
+  if (consume(token, "default")) {
+    if (current_switch == nullptr)
+      error_tok(tok, "'default' statement not in switch statement");
+    seek_if_expect(token, ":");
+
+    struct Node *node = new_unary(NODE_CASE, stmt(token), tok);
+    current_switch->default_case = node;
     return node;
   }
 
@@ -923,7 +966,7 @@ static struct Node *stmt(struct Token **token) {
     return node;
   }
 
-  struct Token *tok = *token;
+  tok = *token;
   if (consume(token, "break")) {
     seek_if_expect(token, ";");
     return new_node(NODE_BREAK, tok);

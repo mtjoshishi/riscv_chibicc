@@ -63,6 +63,8 @@ enum NodeKind {
   NODE_IF,         // "if"
   NODE_WHILE,      // "while"
   NODE_FOR,        // "for"
+  NODE_SWITCH,     // "switch"
+  NODE_CASE,       // "case"
   NODE_SIZEOF,     // "sizeof"
   NODE_BLOCK,      // { ... }
   NODE_BREAK,      // "break"
@@ -131,6 +133,12 @@ struct Node {
 
   // Goto or labeled statement
   char *label_name;
+
+  // Switch-cases
+  struct Node *case_next;
+  struct Node *default_case;
+  long case_label;
+  long case_end_label;
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   long val;        // Value if kind is NODE_NUM
