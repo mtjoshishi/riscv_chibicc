@@ -430,12 +430,12 @@ static struct Type *declarator(struct Token **token, struct Type *ty,
   if (consume(token, "(")) {
     struct Type *placeholder = calloc(1, sizeof(*placeholder));
     struct Type *new_ty = declarator(token, placeholder, name);
-    seek_if_expect(token, ")");
+    expect(token, ")");
     *placeholder = *type_suffix(token, ty);
     return new_ty;
   }
 
-  *name = seek_if_expect_ident(token);
+  *name = expect_ident(token);
   return type_suffix(token, ty);
 }
 
@@ -455,7 +455,7 @@ static struct Type *abstract_declarator(struct Token **token, struct Type *ty) {
   if (consume(token, "(")) {
     struct Type *placeholder = calloc(1, sizeof(*placeholder));
     struct Type *new_ty = abstract_declarator(token, placeholder);
-    seek_if_expect(token, ")");
+    expect(token, ")");
     *placeholder = *type_suffix(token, ty);
     return new_ty;
   }
@@ -477,9 +477,9 @@ static struct Type *type_suffix(struct Token **token, struct Type *ty) {
   long sz = 0;
   bool is_incomplete = true;
   if (!consume(token, "]")) {
-    sz = seek_if_expect_number(token);
+    sz = expect_number(token);
     is_incomplete = false;
-    seek_if_expect(token, "]");
+    expect(token, "]");
   }
 
   ty = type_suffix(token, ty);
@@ -523,7 +523,7 @@ static void push_tag_scope(const struct Token *token, struct Type *ty) {
 static struct Type *struct_decl(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   // Read a struct tag.
-  seek_if_expect(token, "struct");
+  expect(token, "struct");
   struct Token *tag = consume_ident(token);
   if (tag != nullptr && peek(token, "{") == nullptr) {
     struct TagScope *sc = find_tag(tag);
@@ -531,7 +531,7 @@ static struct Type *struct_decl(struct Token **token) {
       error_tok(tag, "Unknown struct type.");
     return sc->ty;
   }
-  seek_if_expect(token, "{");
+  expect(token, "{");
 
   // Read struct members.
   struct Member head = {};
@@ -591,7 +591,7 @@ static struct Type *enum_type_specifier(struct Token **token) {
  */
 static struct Type *enum_specifier(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  seek_if_expect(token, "enum");
+  expect(token, "enum");
 
   // Read an enum tag if exist.
   struct Token *tag = consume_ident(token);
@@ -606,14 +606,14 @@ static struct Type *enum_specifier(struct Token **token) {
 
   // Read a type definition
   struct Type *ty = enum_type_specifier(token);
-  seek_if_expect(token, "{");
+  expect(token, "{");
 
   // Read enum-list
   long cnt = 0;
   for (;;) {
-    char *name = seek_if_expect_ident(token);
+    char *name = expect_ident(token);
     if (consume(token, "="))
-      cnt = seek_if_expect_number(token);
+      cnt = expect_number(token);
 
     struct VarScope *sc = push_scope(name);
     sc->enum_ty = ty;
@@ -624,7 +624,7 @@ static struct Type *enum_specifier(struct Token **token) {
         break;
       continue;
     }
-    seek_if_expect(token, "}");
+    expect(token, "}");
     break;
   }
 
@@ -646,7 +646,7 @@ static struct Member *member_declaration_list(struct Token **token) {
   char *name = nullptr;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
-  seek_if_expect(token, ";");
+  expect(token, ";");
 
   struct Member *mem = calloc(1, sizeof(*mem));
   mem->name = name;
@@ -694,7 +694,7 @@ static struct VarList *read_func_params(struct Token **token) {
   struct VarList *cur = head;
 
   while (!consume(token, ")")) {
-    seek_if_expect(token, ",");
+    expect(token, ",");
     cur->next = read_func_param(token);
     cur = cur->next;
   }
@@ -711,7 +711,7 @@ static void global_var(struct Token **token) {
   struct Token *tok = *token;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
-  seek_if_expect(token, ";");
+  expect(token, ";");
 
   struct Var *var = push_var(name, ty, false, tok);
   push_scope(name)->var = var;
@@ -744,7 +744,7 @@ static struct Function *function(struct Token **token) {
   CHECK(func != nullptr);
   // Seek the type of function. Now, ignore it.
   func->name = name;
-  seek_if_expect(token, "(");
+  expect(token, "(");
   func->params = read_func_params(token);
 
   // Function declaration
@@ -755,7 +755,7 @@ static struct Function *function(struct Token **token) {
   struct Node head = {};
   head.next = nullptr;
   struct Node *cur = &head;
-  seek_if_expect(token, "{");
+  expect(token, "{");
   while (!consume(token, "}")) {
     cur->next = stmt(token);
     CHECK(cur->next != nullptr);
@@ -784,7 +784,7 @@ static struct Node *declaration(struct Token **token) {
   ty = type_suffix(token, ty);
 
   if (ty->is_typedef) {
-    seek_if_expect(token, ";");
+    expect(token, ";");
     ty->is_typedef = false;
     push_scope(name)->type_def = ty;
     return new_node(NODE_NULL, tok);
@@ -803,11 +803,11 @@ static struct Node *declaration(struct Token **token) {
   if (consume(token, ";"))
     return new_node(NODE_NULL, tok);
 
-  seek_if_expect(token, "=");
+  expect(token, "=");
 
   struct Node *lhs = new_var(var, tok);
   struct Node *rhs = expr(token);
-  seek_if_expect(token, ";");
+  expect(token, ";");
   struct Node *node = new_binary(NODE_ASSIGN, lhs, rhs, tok);
   return new_unary(NODE_EXPR_STMT, node, tok);
 }
@@ -849,9 +849,9 @@ static struct Node *stmt(struct Token **token) {
     struct Node *node = new_node(NODE_IF, *token);
     CHECK(node != nullptr);
 
-    seek_if_expect(token, "(");
+    expect(token, "(");
     node->cond = expr(token);
-    seek_if_expect(token, ")");
+    expect(token, ")");
     node->then = stmt(token);
 
     if (consume(token, "else"))
@@ -863,9 +863,9 @@ static struct Node *stmt(struct Token **token) {
   struct Token *tok = *token;
   if (consume(token, "switch")) {
     struct Node *node = new_node(NODE_SWITCH, tok);
-    seek_if_expect(token, "(");
+    expect(token, "(");
     node->cond = expr(token);
-    seek_if_expect(token, ")");
+    expect(token, ")");
 
     struct Node *sw = current_switch;
     current_switch = node;
@@ -878,8 +878,8 @@ static struct Node *stmt(struct Token **token) {
   if (consume(token, "case")) {
     if (current_switch == nullptr)
       error_tok(tok, "'case' statement not in switch statement");
-    long val = seek_if_expect_number(token);
-    seek_if_expect(token, ":");
+    long val = expect_number(token);
+    expect(token, ":");
 
     struct Node *node = new_unary(NODE_CASE, stmt(token), tok);
     node->val = val;
@@ -892,7 +892,7 @@ static struct Node *stmt(struct Token **token) {
   if (consume(token, "default")) {
     if (current_switch == nullptr)
       error_tok(tok, "'default' statement not in switch statement");
-    seek_if_expect(token, ":");
+    expect(token, ":");
 
     struct Node *node = new_unary(NODE_CASE, stmt(token), tok);
     current_switch->default_case = node;
@@ -903,9 +903,9 @@ static struct Node *stmt(struct Token **token) {
     struct Node *node = new_node(NODE_WHILE, *token);
     CHECK(node != nullptr);
 
-    seek_if_expect(token, "(");
+    expect(token, "(");
     node->cond = expr(token);
-    seek_if_expect(token, ")");
+    expect(token, ")");
     node->then = stmt(token);
 
     return node;
@@ -915,7 +915,7 @@ static struct Node *stmt(struct Token **token) {
     struct Node *node = new_node(NODE_FOR, *token);
     CHECK(node != nullptr);
 
-    seek_if_expect(token, "(");
+    expect(token, "(");
 
     struct Scope *sc = enter_scope();
 
@@ -924,18 +924,18 @@ static struct Node *stmt(struct Token **token) {
         node->init = declaration(token);
       } else {
         node->init = read_expr_stmt(token);
-        seek_if_expect(token, ";");
+        expect(token, ";");
       }
     }
 
     if (!consume(token, ";")) {
       node->cond = expr(token);
-      seek_if_expect(token, ";");
+      expect(token, ";");
     }
 
     if (!consume(token, ")")) {
       node->increment = read_expr_stmt(token);
-      seek_if_expect(token, ")");
+      expect(token, ")");
     }
     node->then = stmt(token);
 
@@ -945,7 +945,7 @@ static struct Node *stmt(struct Token **token) {
 
   if (consume(token, "return")) {
     struct Node *node = new_unary(NODE_RETURN, expr(token), *token);
-    seek_if_expect(token, ";");
+    expect(token, ";");
     return node;
   }
 
@@ -968,21 +968,21 @@ static struct Node *stmt(struct Token **token) {
 
   tok = *token;
   if (consume(token, "break")) {
-    seek_if_expect(token, ";");
+    expect(token, ";");
     return new_node(NODE_BREAK, tok);
   }
 
   tok = *token;
   if (consume(token, "continue")) {
-    seek_if_expect(token, ";");
+    expect(token, ";");
     return new_node(NODE_CONTINUE, tok);
   }
 
   tok = *token;
   if (consume(token, "goto")) {
     struct Node *node = new_node(NODE_GOTO, tok);
-    node->label_name = seek_if_expect_ident(token);
-    seek_if_expect(token, ";");
+    node->label_name = expect_ident(token);
+    expect(token, ";");
     return node;
   }
 
@@ -1000,7 +1000,7 @@ static struct Node *stmt(struct Token **token) {
     return declaration(token);
 
   struct Node *node = read_expr_stmt(token);
-  seek_if_expect(token, ";");
+  expect(token, ";");
   return node;
 }
 
@@ -1177,7 +1177,7 @@ static struct Node *cast(struct Token **token) {
   if (consume(token, "(")) {
     if (is_typename(token)) {
       struct Type *ty = type_name(token);
-      seek_if_expect(token, ")");
+      expect(token, ")");
       struct Node *node = new_unary(NODE_CAST, cast(token), tok);
       node->ty = ty;
       return node;
@@ -1225,14 +1225,14 @@ static struct Node *postfix(struct Token **token) {
     if (consume(token, "[")) {
       // x[y] is short for *(x+y)
       struct Node *exp = new_binary(NODE_ADD, node, expr(token), *token);
-      seek_if_expect(token, "]");
+      expect(token, "]");
       node = new_unary(NODE_DEREF, exp, *token);
       continue;
     }
 
     if (consume(token, ".")) {
       node = new_unary(NODE_MEMBER, node, *token);
-      node->member_name = seek_if_expect_ident(token);
+      node->member_name = expect_ident(token);
       continue;
     }
 
@@ -1240,7 +1240,7 @@ static struct Node *postfix(struct Token **token) {
       // x->y is short for (*x).y.
       node = new_unary(NODE_DEREF, node, *token);
       node = new_unary(NODE_MEMBER, node, *token);
-      node->member_name = seek_if_expect_ident(token);
+      node->member_name = expect_ident(token);
       continue;
     }
 
@@ -1276,7 +1276,7 @@ static struct Node *stmt_expr(struct Token **token) {
     cur->next = stmt(token);
     cur = cur->next;
   }
-  seek_if_expect(token, ")");
+  expect(token, ")");
   leave_scope(sc);
 
   if (cur->kind != NODE_EXPR_STMT)
@@ -1297,7 +1297,7 @@ static struct Node *func_args(struct Token **token) {
     cur->next = assign(token);
     cur = cur->next;
   }
-  seek_if_expect(token, ")");
+  expect(token, ")");
   return head;
 }
 
@@ -1320,7 +1320,7 @@ static struct Node *primary(struct Token **token) {
     if (consume(token, "{"))
       return stmt_expr(token);
     struct Node *node = expr(token);
-    seek_if_expect(token, ")");
+    expect(token, ")");
     return node;
   }
 
@@ -1329,7 +1329,7 @@ static struct Node *primary(struct Token **token) {
     if (consume(token, "(")) {
       if (is_typename(token)) {
         struct Type *ty = type_name(token);
-        seek_if_expect(token, ")");
+        expect(token, ")");
         return new_num(__size_of(ty, tok), tok);
       }
       *token = tok->next;
@@ -1378,5 +1378,5 @@ static struct Node *primary(struct Token **token) {
 
   if (tok->kind != TK_NUM)
     error_tok(tok, "Expected expression");
-  return new_num(seek_if_expect_number(token), tok);
+  return new_num(expect_number(token), tok);
 }

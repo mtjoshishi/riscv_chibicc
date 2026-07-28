@@ -61,7 +61,7 @@ struct Token *consume_ident(struct Token **token_ptr) {
  * @param token_ptr The pointer of a token to seek.
  * @param s Expected string.
  */
-void seek_if_expect(struct Token **token_ptr, char *s) {
+void expect(struct Token **token_ptr, char *s) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   struct Token *token = peek(token_ptr, s);
   if (token == nullptr)
@@ -74,7 +74,7 @@ void seek_if_expect(struct Token **token_ptr, char *s) {
  * @param token_ptr The pointer of a token to seek.
  * @return The name of identifier.
  */
-char *seek_if_expect_ident(struct Token **token_ptr) {
+char *expect_ident(struct Token **token_ptr) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   if ((*token_ptr)->kind != TK_IDENT)
     error_tok(*token_ptr, "Expected an identifier.");
@@ -89,7 +89,7 @@ char *seek_if_expect_ident(struct Token **token_ptr) {
  * @param token_ptr A token to seek. Expected as numeric value.
  * @return Value of a give token.
  */
-long seek_if_expect_number(struct Token **token_ptr) {
+long expect_number(struct Token **token_ptr) {
   CHECK(token_ptr != nullptr && *token_ptr != nullptr);
   if ((*token_ptr)->kind != TK_NUM)
     error_tok(*token_ptr, "The given token is not a numeric value.");
