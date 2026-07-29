@@ -500,6 +500,14 @@ int main() {
   assert(8, ({ int i=5; switch(0) { case 0: i++; case 1: i++; case 2: i++; } i; }), "int i=5; switch(0) { case 0: i++; case 1: i++; case 2: i++; } i;");
   assert(6, ({ int i=5; switch(2) { case 0: i++; case 1: i++; default: i++; } i; }), "int i=5; switch(2) { case 0: i++; case 1: i++; default: i++; } i;");
 
+  assert(8, ({ struct foo *bar; sizeof(bar); }), "struct foo *bar; sizeof(bar);");
+  assert(4, ({ struct T *foo; struct T { int x; }; sizeof(struct T); }), "struct T *foo; struct T { int x; }; sizeof(struct T);");
+  assert(1, ({ struct T { struct T *next; int x; } a; struct T b; b.x=1; a.next=&b; a.next->x; }), "struct T { struct T *next; int x; } a; struct T b; b.x=1; a.next=&b; a.next->x;");
+
+  assert(4, ({ enum T : int; sizeof(enum T); }), "enum T : int; sizeof(enum T);");
+  assert(1, ({ enum T : char; sizeof(enum T); }), "enum T : char; sizeof(enum T);");
+  assert(2, ({ enum T : short; enum T : short { zero, one }; sizeof(enum T); }), "enum T : short; enum T : short { zero, one }; sizeof(enum T);");
+
   printf("OK\n");
   return 0;
 }

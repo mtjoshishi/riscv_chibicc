@@ -14,6 +14,7 @@
 struct VarScope {
   struct VarScope *next;
   char *name;
+  int depth;
   struct Var *var;
   struct Type *type_def;
   struct Type *enum_ty;
@@ -24,6 +25,7 @@ struct VarScope {
 struct TagScope {
   struct TagScope *next;
   char *name;
+  int depth;
   struct Type *ty;
 };
 
@@ -37,6 +39,7 @@ struct VarList *globals;
 
 struct VarScope *var_scope;
 struct TagScope *tag_scope;
+int scope_depth;
 
 struct Node *current_switch = nullptr;
 
@@ -45,6 +48,7 @@ static struct Scope *enter_scope() {
   CHECK(sc != nullptr);
   sc->var_scope = var_scope;
   sc->tag_scope = tag_scope;
+  ++scope_depth;
   return sc;
 }
 
@@ -52,6 +56,7 @@ static void leave_scope(struct Scope *sc) {
   CHECK(sc != nullptr);
   var_scope = sc->var_scope;
   tag_scope = sc->tag_scope;
+  --scope_depth;
 }
 
 /// @brief Find a variable or a typedef by name.
@@ -71,7 +76,6 @@ static struct VarScope *find_var(const struct Token *token) {
  * @return Found tag scope. If not found, returns nullptr.
  */
 static struct TagScope *find_tag(struct Token *token) {
-  CHECK(token != nullptr);
   for (struct TagScope *sc = tag_scope; sc != nullptr; sc = sc->next) {
     if (strlen(sc->name) == token->len &&
         !memcmp(token->str, sc->name, token->len))
@@ -165,6 +169,7 @@ static struct VarScope *push_scope(char *name) {
   CHECK(vsc != nullptr);
   vsc->name = name;
   vsc->next = var_scope;
+  vsc->depth = scope_depth;
   var_scope = vsc;
   return vsc;
 }
@@ -510,13 +515,13 @@ static void push_tag_scope(const struct Token *token, struct Type *ty) {
   CHECK(sc != nullptr);
   sc->next = tag_scope;
   sc->name = strndup(token->str, token->len);
+  sc->depth = scope_depth;
   sc->ty = ty;
   tag_scope = sc;
 }
 
 /**
- * @brief struct-decl = "struct" ident
- *                    | "struct" ident? "{ member-declaration-list }"
+ * @brief struct-decl = "struct" ident? "{ member-declaration-list }"?
  * @param token The tokenized source code. This will be sought.
  * @return The type of struct.
  */
@@ -527,11 +532,43 @@ static struct Type *struct_decl(struct Token **token) {
   struct Token *tag = consume_ident(token);
   if (tag != nullptr && peek(token, "{") == nullptr) {
     struct TagScope *sc = find_tag(tag);
-    if (sc == nullptr)
-      error_tok(tag, "Unknown struct type.");
-    return sc->ty;
+
+    if (sc != nullptr) {
+      if (sc->ty->kind != TYPE_STRUCT)
+        error_tok(tag, "Unknown struct type.");
+
+      return sc->ty;
+    }
+
+    struct Type *ty = struct_type();
+    push_tag_scope(tag, ty);
+    return ty;
   }
+
   expect(token, "{");
+
+  // Construct a struct object.
+  struct TagScope *sc = find_tag(tag);
+  struct Type *ty;
+
+  if (sc != nullptr && sc->depth == scope_depth) {
+    /*
+     * If there is an existing struct type with the same tag name in the same
+     * scope, this is a redefinition.
+     */
+    if (sc->ty->kind != TYPE_STRUCT)
+      error_tok(tag, "Use of '%s' with tag type does not match previous use.",
+                tag->str);
+    ty = sc->ty;
+  } else {
+    /*
+     * Register the struct type as an incomplete type early, so that can write
+     * recursive structs as "struct T { struct T *next; };"
+     */
+    ty = struct_type();
+    if (tag != nullptr)
+      push_tag_scope(tag, ty);
+  }
 
   // Read struct members.
   struct Member head = {};
@@ -543,8 +580,6 @@ static struct Type *struct_decl(struct Token **token) {
     cur = cur->next;
   }
 
-  struct Type *ty = calloc(1, sizeof(*ty));
-  ty->kind = TYPE_STRUCT;
   ty->members = head.next;
 
   /*
@@ -562,9 +597,7 @@ static struct Type *struct_decl(struct Token **token) {
       ty->align = mem->ty->align;
   }
 
-  // Register the struct type if a name was given.
-  if (tag != nullptr)
-    push_tag_scope(tag, ty);
+  ty->is_incomplete = false;
   return ty;
 }
 
@@ -583,9 +616,9 @@ static struct Type *enum_type_specifier(struct Token **token) {
 }
 
 /**
- * @brief enum-specifier = "enum" ident
+ * @brief enum-specifier = "enum" ident enum-type-specifier?
  *                       | "enum" ident? enum-type-specifier? "{" enum-list? "}"
- *        enum-list = ident ("=" num)? ("," enum-list)?
+ *             enum-list = ident ("=" num)? ("," enum-list)?
  * If 'enum-type-specifier' is not specified, treats as int by default.
  * @param token Tokenized source code.
  */
@@ -593,43 +626,54 @@ static struct Type *enum_specifier(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   expect(token, "enum");
 
-  // Read an enum tag if exist.
   struct Token *tag = consume_ident(token);
-  if (tag != nullptr && !peek(token, ":") && !peek(token, "{")) {
-    struct TagScope *tsc = find_tag(tag);
-    if (tsc == nullptr)
+  bool has_base = peek(token, ":");
+  struct Type *ty = enum_type_specifier(token);
+
+  // Case of reference, e.g. 'sizeof(enum T)'.
+  if (!has_base && !peek(token, "{")) {
+    if (tag == nullptr)
+      error_tok(*token, "Expected enum tag or '{'.");
+    struct TagScope *sc = find_tag(tag);
+    if (sc == nullptr)
       error_tok(tag, "Unknown enum type.");
-    if (tsc->ty->kind != TYPE_ENUM)
-      error_tok(tag, "Not an enum tag.");
-    return tsc->ty;
+    return sc->ty;
   }
 
-  // Read a type definition
-  struct Type *ty = enum_type_specifier(token);
-  expect(token, "{");
+  // Case of forward declaration, e.g. 'enum T : int;'.
+  if (tag != nullptr) {
+    struct TagScope *sc = find_tag(tag);
+    if (sc != nullptr && sc->depth == scope_depth) {
+      if (sc->ty->base->kind != ty->base->kind)
+        error_tok(tag,
+                  "Enumeration redeclared with different underlying type.");
+      ty = sc->ty;
+    } else {
+      push_tag_scope(tag, ty);
+    }
+  }
 
   // Read enum-list
-  long cnt = 0;
-  for (;;) {
-    char *name = expect_ident(token);
-    if (consume(token, "="))
-      cnt = expect_number(token);
+  if (consume(token, "{")) {
+    long cnt = 0;
+    for (;;) {
+      char *name = expect_ident(token);
+      if (consume(token, "="))
+        cnt = expect_number(token);
 
-    struct VarScope *sc = push_scope(name);
-    sc->enum_ty = ty;
-    sc->enum_val = cnt++;
+      struct VarScope *sc = push_scope(name);
+      sc->enum_ty = ty;
+      sc->enum_val = cnt++;
 
-    if (consume(token, ",")) {
-      if (consume(token, "}"))
-        break;
-      continue;
+      if (consume(token, ",")) {
+        if (consume(token, "}"))
+          break;
+        continue;
+      }
+      expect(token, "}");
+      break;
     }
-    expect(token, "}");
-    break;
   }
-
-  if (tag != nullptr)
-    push_tag_scope(tag, ty);
 
   return ty;
 }

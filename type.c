@@ -52,6 +52,12 @@ struct Type *enum_type(struct Type *basetype) {
   return ty;
 }
 
+struct Type *struct_type() {
+  struct Type *ty = new_type(TYPE_STRUCT, 1);
+  ty->is_incomplete = true;
+  return ty;
+}
+
 struct Type *func_type(struct Type *return_ty) {
   CHECK(return_ty != nullptr);
   struct Type *ty = new_type(TYPE_FUNC, 1);
