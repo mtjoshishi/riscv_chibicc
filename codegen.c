@@ -577,15 +577,14 @@ static void gen(struct Node *node) {
       args_cnt += 1;
     }
 
-    for (int i = args_cnt - 1; i >= 0; i -= 1) {
-      printf("    ld %s, 0(sp)\n", argreg[i]);
-      printf("    addi sp, sp, 8\n");
-    }
+    for (int i = args_cnt - 1; i >= 0; i -= 1)
+      pop(argreg[i]);
 
     printf("    call %s\n", node->funcname);
     push("a0");
 
-    __truncate(node->ty);
+    if (node->ty->kind != TYPE_VOID)
+      __truncate(node->ty);
     return;
   }
   case NODE_RETURN:

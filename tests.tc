@@ -101,6 +101,8 @@ int count_array() {
 
 int param_decay(int x[]) { return x[0]; }
 
+void void_fn() {}
+
 int main() {
   assert(8, ({ int a=3; int z=5; a+z; }), "int a=3; int z=5; a+z;");
 
@@ -507,6 +509,8 @@ int main() {
   assert(4, ({ enum T : int; sizeof(enum T); }), "enum T : int; sizeof(enum T);");
   assert(1, ({ enum T : char; sizeof(enum T); }), "enum T : char; sizeof(enum T);");
   assert(2, ({ enum T : short; enum T : short { zero, one }; sizeof(enum T); }), "enum T : short; enum T : short { zero, one }; sizeof(enum T);");
+
+  void_fn();
 
   printf("OK\n");
   return 0;
