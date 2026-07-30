@@ -245,6 +245,7 @@ static bool is_typename(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
 static struct Node *assign(struct Token **token);
+static struct Node *conditional(struct Token **token);
 static struct Node *logicalor(struct Token **token);
 static struct Node *logicaland(struct Token **token);
 static struct Node *bitwiseor(struct Token **token);
@@ -1065,14 +1066,14 @@ static struct Node *expr(struct Token **token) {
 }
 
 /**
- * @brief assign = logical-or (assign-op assign)?
+ * @brief assign = conditional (assign-op assign)?
  *        assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "<<=" | ">>="
  * @param[in] token Tokenized source code.
  * @return Node for `assign`
  */
 static struct Node *assign(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
-  struct Node *node = logicalor(token);
+  struct Node *node = conditional(token);
 
   if (consume(token, "="))
     node = new_binary(NODE_ASSIGN, node, assign(token), *token);
@@ -1090,6 +1091,26 @@ static struct Node *assign(struct Token **token) {
     node = new_binary(NODE_ASSIGN_SHR, node, assign(token), *token);
 
   return node;
+}
+
+/**
+ * @brief conditional = logical-or ("?" expr : conditional)?
+ * @param[in] token Tokenized source code.
+ */
+static struct Node *conditional(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = logicalor(token);
+  struct Token *tok = *token;
+
+  if (!consume(token, "?"))
+    return node;
+
+  struct Node *ternary = new_node(NODE_TERNARY, tok);
+  ternary->cond = node;
+  ternary->then = expr(token);
+  expect(token, ":");
+  ternary->els = conditional(token);
+  return ternary;
 }
 
 /// @brief logical-or = logical-and ("||" logical-and)*

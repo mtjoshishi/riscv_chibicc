@@ -220,6 +220,9 @@ static void visit(struct Node *node) {
   case NODE_BITNOT:
     node->ty = node->lhs->ty;
     return;
+  case NODE_TERNARY:
+    node->ty = node->then->ty;
+    return;
   case NODE_COMMA:
     node->ty = node->rhs->ty;
     return;

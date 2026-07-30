@@ -270,6 +270,18 @@ static void gen(struct Node *node) {
     gen(node->rhs);
     store(node->ty);
     return;
+  case NODE_TERNARY: {
+    long seq = labelseq++;
+    gen(node->cond);
+    pop("t0");
+    printf("    beqz t0, .L.else%ld\n", seq);
+    gen(node->then);
+    printf("    j .L.end%ld\n", seq);
+    printf(".L.else%ld:\n", seq);
+    gen(node->els);
+    printf(".L.end%ld:\n", seq);
+    return;
+  }
   case NODE_PRE_INC:
     gen_lval(node->lhs);
     // In x86_64, "push [rsp]".

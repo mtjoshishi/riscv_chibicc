@@ -323,7 +323,7 @@ struct Token *tokenize(char *input) {
       continue;
     }
 
-    if (strchr("+-*/()<>;={},&[],.:!~^|", *p)) {
+    if (strchr("+-*/()<>;={},&[],.:!~^|?", *p)) {
       cur = new_token(TK_RESERVED, &cur, input, p, 1);
       p++;
       continue;
