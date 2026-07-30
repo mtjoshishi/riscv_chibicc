@@ -46,6 +46,18 @@ static void pop(const char *reg) {
   printf("    addi sp, sp, 8\n");
 }
 
+/**
+ * @brief Copy the current value at the top of the stack, and re-push this value
+ * onto the 'new' top of the stack.
+ *
+ * @param reg The register to assign the value from the top of the stack.
+ */
+static void copy_stack_top(const char *reg) {
+  CHECK(reg != nullptr);
+  printf("    ld %s, 0(sp)\n", reg);
+  push(reg);
+}
+
 /// @brief Generate local variable into the stack.
 static void gen_addr(struct Node *node) {
   CHECK(node != nullptr);
@@ -284,28 +296,21 @@ static void gen(struct Node *node) {
   }
   case NODE_PRE_INC:
     gen_lval(node->lhs);
-    // In x86_64, "push [rsp]".
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    copy_stack_top("t0");
     load(node->ty);
     __increment(node);
     store(node->ty);
     return;
   case NODE_PRE_DEC:
     gen_lval(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    copy_stack_top("t0");
     load(node->ty);
     __decrement(node);
     store(node->ty);
     return;
   case NODE_POST_INC:
     gen_lval(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    copy_stack_top("t0");
     load(node->ty);
     __increment(node);
     store(node->ty);
@@ -313,9 +318,7 @@ static void gen(struct Node *node) {
     return;
   case NODE_POST_DEC:
     gen_lval(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    copy_stack_top("t0");
     load(node->ty);
     __decrement(node);
     store(node->ty);
@@ -333,9 +336,7 @@ static void gen(struct Node *node) {
     [[fallthrough]];
   case NODE_ASSIGN_SHR: {
     gen_lval(node->lhs);
-    printf("    ld t0, 0(sp)\n");
-    printf("    addi sp, sp, -8\n");
-    printf("    sd t0, 0(sp)\n");
+    copy_stack_top("t0");
     load(node->lhs->ty);
     gen(node->rhs);
     pop("t1");
