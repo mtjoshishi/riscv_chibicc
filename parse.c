@@ -252,6 +252,7 @@ static struct Node *bitwiseand(struct Token **token);
 static struct Node *bitwisexor(struct Token **token);
 static struct Node *equality(struct Token **token);
 static struct Node *relational(struct Token **token);
+static struct Node *shift(struct Token **token);
 static struct Node *add(struct Token **token);
 static struct Node *mul(struct Token **token);
 static struct Node *cast(struct Token **token);
@@ -1065,13 +1066,14 @@ static struct Node *expr(struct Token **token) {
 
 /**
  * @brief assign = logical-or (assign-op assign)?
- *        assign-op = "=" | "+=" | "-=" | "*=" | "/="
+ *        assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "<<=" | ">>="
  * @param[in] token Tokenized source code.
  * @return Node for `assign`
  */
 static struct Node *assign(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = logicalor(token);
+
   if (consume(token, "="))
     node = new_binary(NODE_ASSIGN, node, assign(token), *token);
   if (consume(token, "+="))
@@ -1082,6 +1084,11 @@ static struct Node *assign(struct Token **token) {
     node = new_binary(NODE_ASSIGN_MUL, node, assign(token), *token);
   if (consume(token, "/="))
     node = new_binary(NODE_ASSIGN_DIV, node, assign(token), *token);
+  if (consume(token, "<<="))
+    node = new_binary(NODE_ASSIGN_SHL, node, assign(token), *token);
+  if (consume(token, ">>="))
+    node = new_binary(NODE_ASSIGN_SHR, node, assign(token), *token);
+
   return node;
 }
 
@@ -1150,23 +1157,41 @@ static struct Node *equality(struct Token **token) {
 }
 
 /**
- * @brief relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+ * @brief relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
  * @param **token Tokenized source code.
- * @return Node for `add`.
+ * @return Node for `relational`.
  */
 static struct Node *relational(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Node *node = shift(token);
+
+  for (;;) {
+    if (consume(token, "<"))
+      node = new_binary(NODE_LT, node, shift(token), *token);
+    else if (consume(token, "<="))
+      node = new_binary(NODE_LE, node, shift(token), *token);
+    else if (consume(token, ">"))
+      node = new_binary(NODE_LT, shift(token), node, *token);
+    else if (consume(token, ">="))
+      node = new_binary(NODE_LE, shift(token), node, *token);
+    else
+      return node;
+  }
+}
+
+/**
+ * @brief shift = add ("<<" add | ">>" add)*
+ * @param token Tokenized source code.
+ */
+static struct Node *shift(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
   struct Node *node = add(token);
 
   for (;;) {
-    if (consume(token, "<"))
-      node = new_binary(NODE_LT, node, add(token), *token);
-    else if (consume(token, "<="))
-      node = new_binary(NODE_LE, node, add(token), *token);
-    else if (consume(token, ">"))
-      node = new_binary(NODE_LT, add(token), node, *token);
-    else if (consume(token, ">="))
-      node = new_binary(NODE_LE, add(token), node, *token);
+    if (consume(token, "<<"))
+      node = new_binary(NODE_SHL, node, add(token), *token);
+    else if (consume(token, ">>"))
+      node = new_binary(NODE_SHR, node, add(token), *token);
     else
       return node;
   }

@@ -316,6 +316,10 @@ static void gen(struct Node *node) {
   case NODE_ASSIGN_MUL:
     [[fallthrough]];
   case NODE_ASSIGN_DIV:
+    [[fallthrough]];
+  case NODE_ASSIGN_SHL:
+    [[fallthrough]];
+  case NODE_ASSIGN_SHR: {
     gen_lval(node->lhs);
     printf("    ld t0, 0(sp)\n");
     printf("    addi sp, sp, -8\n");
@@ -346,6 +350,12 @@ static void gen(struct Node *node) {
     case NODE_ASSIGN_DIV:
       printf("    div t0, t0, t1\n");
       break;
+    case NODE_ASSIGN_SHL:
+      printf("    sll t0, t0, t1\n");
+      break;
+    case NODE_ASSIGN_SHR:
+      printf("    sra t0, t0, t1\n");
+      break;
     default:
       error_tok(node->tok, "Unreachable.");
     }
@@ -353,6 +363,7 @@ static void gen(struct Node *node) {
     push("t0");
     store(node->ty);
     return;
+  }
   case NODE_COMMA:
     gen(node->lhs);
     gen(node->rhs);
@@ -635,6 +646,16 @@ static void gen(struct Node *node) {
     break;
   case NODE_BITOR:
     printf("    or t0, t0, t1\n");
+    break;
+  case NODE_SHL:
+    printf("    sll t0, t0, t1\n");
+    break;
+  case NODE_SHR:
+    /*
+     * Don't use 'SRL' instruction for a signed value because zeros are
+     * shifted into the upper bits. Use 'SRA' to keep the original sign bit.
+     */
+    printf("    sra t0, t0, t1\n");
     break;
   case NODE_EQ:
     printf("    sub t0, t0, t1\n");

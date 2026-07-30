@@ -38,6 +38,8 @@ enum NodeKind {
   NODE_DIV,        // '/'
   NODE_BITAND,     // &
   NODE_BITOR,      // |
+  NODE_SHL,        // Left shift, <<
+  NODE_SHR,        // Right shift, >>
   NODE_BITXOR,     // ^
   NODE_EQ,         // ==
   NODE_NE,         // !=
@@ -51,6 +53,8 @@ enum NodeKind {
   NODE_ASSIGN_ADD, // +=
   NODE_ASSIGN_SUB, // -=
   NODE_ASSIGN_MUL, // *=
+  NODE_ASSIGN_SHL, // <<=
+  NODE_ASSIGN_SHR, // >>=
   NODE_ASSIGN_DIV, // /=
   NODE_COMMA,      // ,
   NODE_MEMBER,     // . (struct member access)

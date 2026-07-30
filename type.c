@@ -193,6 +193,10 @@ static void visit(struct Node *node) {
     return;
   case NODE_ASSIGN:
     [[fallthrough]];
+  case NODE_SHL:
+    [[fallthrough]];
+  case NODE_SHR:
+    [[fallthrough]];
   case NODE_PRE_INC:
     [[fallthrough]];
   case NODE_PRE_DEC:
@@ -208,6 +212,10 @@ static void visit(struct Node *node) {
   case NODE_ASSIGN_MUL:
     [[fallthrough]];
   case NODE_ASSIGN_DIV:
+    [[fallthrough]];
+  case NODE_ASSIGN_SHL:
+    [[fallthrough]];
+  case NODE_ASSIGN_SHR:
     [[fallthrough]];
   case NODE_BITNOT:
     node->ty = node->lhs->ty;
