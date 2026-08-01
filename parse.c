@@ -244,6 +244,7 @@ static struct Node *declaration(struct Token **token);
 static bool is_typename(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
+static long const_expr(struct Token **token);
 static struct Node *assign(struct Token **token);
 static struct Node *conditional(struct Token **token);
 static struct Node *logicalor(struct Token **token);
@@ -470,7 +471,7 @@ static struct Type *abstract_declarator(struct Token **token, struct Type *ty) {
 }
 
 /**
- * @brief type-suffix = ("[" num? "]" type-suffix)?
+ * @brief type-suffix = ("[" const-expr? "]" type-suffix)?
  * @param token The tokenized token.
  * @param ty The representative 'type' object.
  * @return 'struct Type': type-suffix.
@@ -484,7 +485,7 @@ static struct Type *type_suffix(struct Token **token, struct Type *ty) {
   long sz = 0;
   bool is_incomplete = true;
   if (!consume(token, "]")) {
-    sz = expect_number(token);
+    sz = const_expr(token);
     is_incomplete = false;
     expect(token, "]");
   }
@@ -620,7 +621,8 @@ static struct Type *enum_type_specifier(struct Token **token) {
 /**
  * @brief enum-specifier = "enum" ident enum-type-specifier?
  *                       | "enum" ident? enum-type-specifier? "{" enum-list? "}"
- *             enum-list = ident ("=" num)? ("," enum-list)?
+ *             enum-list = enumerator ("," enumerator)* ","?
+ *            enumerator = ident ("=" const-expr)
  * If 'enum-type-specifier' is not specified, treats as int by default.
  * @param token Tokenized source code.
  */
@@ -661,7 +663,7 @@ static struct Type *enum_specifier(struct Token **token) {
     for (;;) {
       char *name = expect_ident(token);
       if (consume(token, "="))
-        cnt = expect_number(token);
+        cnt = const_expr(token);
 
       struct VarScope *sc = push_scope(name);
       sc->enum_ty = ty;
@@ -880,7 +882,7 @@ static bool is_typename(struct Token **token) {
  *             | "continue" ";"
  *             | "if" "(" expr ")" stmt ("else" stmt)?
  *             | "switch" "(" expr ")" stmt
- *             | "case" num ":" stmt
+ *             | "case" const-expr ":" stmt
  *             | "while" "(" expr ")" stmt
  *             | "for" "(" (expr? ";" | declaration) expr? ";" expr ";" )" stmt
  *             | declaration
@@ -924,7 +926,7 @@ static struct Node *stmt(struct Token **token) {
   if (consume(token, "case")) {
     if (current_switch == nullptr)
       error_tok(tok, "'case' statement not in switch statement");
-    long val = expect_number(token);
+    long val = const_expr(token);
     expect(token, ":");
 
     struct Node *node = new_unary(NODE_CASE, stmt(token), tok);
@@ -1063,6 +1065,60 @@ static struct Node *expr(struct Token **token) {
     node = new_binary(NODE_COMMA, node, assign(token), *token);
   }
   return node;
+}
+
+static long eval(struct Node *node) {
+  CHECK(node != nullptr);
+
+  switch (node->kind) {
+  case NODE_ADD:
+    return eval(node->lhs) + eval(node->rhs);
+  case NODE_SUB:
+    return eval(node->lhs) - eval(node->rhs);
+  case NODE_MUL:
+    return eval(node->lhs) * eval(node->rhs);
+  case NODE_DIV:
+    return eval(node->lhs) / eval(node->rhs);
+  case NODE_BITAND:
+    return eval(node->lhs) & eval(node->rhs);
+  case NODE_BITOR:
+    return eval(node->lhs) | eval(node->rhs);
+  case NODE_BITXOR:
+    return eval(node->lhs) ^ eval(node->rhs);
+  case NODE_SHL:
+    return eval(node->lhs) << eval(node->rhs);
+  case NODE_SHR:
+    return eval(node->lhs) >> eval(node->rhs);
+  case NODE_EQ:
+    return eval(node->lhs) == eval(node->rhs);
+  case NODE_NE:
+    return eval(node->lhs) != eval(node->rhs);
+  case NODE_LT:
+    return eval(node->lhs) < eval(node->rhs);
+  case NODE_LE:
+    return eval(node->lhs) <= eval(node->rhs);
+  case NODE_TERNARY:
+    return eval(node->cond) ? eval(node->then) : eval(node->els);
+  case NODE_COMMA:
+    return eval(node->rhs);
+  case NODE_NOT:
+    return !eval(node->lhs);
+  case NODE_BITNOT:
+    return ~eval(node->lhs);
+  case NODE_LOGAND:
+    return eval(node->lhs) && eval(node->rhs);
+  case NODE_LOGOR:
+    return eval(node->lhs) || eval(node->rhs);
+  case NODE_NUM:
+    return node->val;
+  default:
+    error_tok(node->tok, "Not a constant expression.");
+  }
+  __builtin_unreachable();
+}
+
+static long const_expr(struct Token **token) {
+  return eval(conditional(token));
 }
 
 /**
