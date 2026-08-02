@@ -750,6 +750,31 @@ static struct VarList *read_func_params(struct Token **token) {
   return head;
 }
 
+/**
+ * @brief Initializer list can end either with "}" or "," followed by "}"
+ * to allow trailing comma. This returns true if it looks like we are at the
+ * end of an initializer list.
+ * @param[in] token Tokenized source code.
+ * @return bool
+ */
+static bool peek_end(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Token *tok = *token;
+  bool ret =
+      consume(token, "}") || (consume(token, ",") && consume(token, "}"));
+  *token = tok;
+  return ret;
+}
+
+static void expect_end(struct Token **token) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Token *tok = *token;
+  if (consume(token, ",") && consume(token, "}"))
+    return;
+  *token = tok;
+  expect(token, "}");
+}
+
 /// @brief global-var = type-specifier declarator type-suffix ";"
 static void global_var(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
@@ -815,9 +840,83 @@ static struct Function *function(struct Token **token) {
   return func;
 }
 
+struct Designator {
+  struct Designator *next;
+  int idx;
+};
+
+/**
+ * @brief Creates a node for an array access. For example, if `var` represents
+ * a variable `x` and `desg` represents indices 3 and 4, this returns a node
+ * representing `x[3][4]`.
+ * @param[in] var Variable object.
+ * @param[in] desg Designator of index of array.
+ */
+static struct Node *new_desg_node2(struct Var *var, struct Designator *desg) {
+  CHECK(var != nullptr);
+  struct Token *tok = var->tok;
+  if (desg == nullptr)
+    return new_var(var, tok);
+
+  struct Node *node = new_desg_node2(var, desg->next);
+  node = new_binary(NODE_ADD, node, new_num(desg->idx, tok), tok);
+  return new_unary(NODE_DEREF, node, tok);
+}
+
+static struct Node *new_desg_node(struct Var *var, struct Designator *desg,
+                                  struct Node *rhs) {
+  CHECK(var != nullptr && rhs != nullptr);
+  struct Node *lhs = new_desg_node2(var, desg);
+  struct Node *node = new_binary(NODE_ASSIGN, lhs, rhs, rhs->tok);
+  return new_unary(NODE_EXPR_STMT, node, rhs->tok);
+}
+
+/**
+ * @brief
+ * lvar-initializer = assign
+ *                  | "{" lvar-initializer ("," lvar-initializer)* ","? "}"
+ *
+ * An initializer for a local variable is expanded to multiple assignments.
+ * For example, this creates the following nodes for
+ * `x[2][3]={{1,2,3},{4,5,6}}`.
+ *
+ *   x[0][0]=1;
+ *   x[0][1]=2;
+ *   x[0][2]=3;
+ *   x[1][0]=4;
+ *   x[1][1]=5;
+ *   x[1][2]=6;
+ */
+static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
+                                     struct Var *var, struct Type *ty,
+                                     struct Designator *desg) {
+  CHECK(token != nullptr && *token != nullptr);
+  struct Token *tok = *token;
+  if (!consume(token, "{")) {
+    cur->next = new_desg_node(var, desg, assign(token));
+    return cur->next;
+  }
+
+  if (ty->kind == TYPE_ARRAY) {
+    int i = 0;
+
+    do {
+      struct Designator desg2 = {desg, i++};
+      cur = lvar_initializer(token, cur, var, ty->base, &desg2);
+    } while (!peek_end(token) && consume(token, ","));
+
+    expect_end(token);
+    return cur;
+  }
+
+  error_tok(tok, "Invalid array initializer.");
+  return nullptr;
+}
+
 /*
- * @brief declaration = type-specifier declarator type-suffix ("=" expr)? ";"
- *                    | type-specifier ";"
+ * @brief
+ * declaration = type-specifier declarator type-suffix ("=" lvar-initializer)?
+ * ";" | type-specifier ";"
  */
 static struct Node *declaration(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
@@ -853,11 +952,14 @@ static struct Node *declaration(struct Token **token) {
 
   expect(token, "=");
 
-  struct Node *lhs = new_var(var, tok);
-  struct Node *rhs = expr(token);
+  struct Node head;
+  head.next = nullptr;
+  lvar_initializer(token, &head, var, var->ty, nullptr);
   expect(token, ";");
-  struct Node *node = new_binary(NODE_ASSIGN, lhs, rhs, tok);
-  return new_unary(NODE_EXPR_STMT, node, tok);
+
+  struct Node *node = new_node(NODE_BLOCK, tok);
+  node->body = head.next;
+  return node;
 }
 
 static struct Node *read_expr_stmt(struct Token **token) {
