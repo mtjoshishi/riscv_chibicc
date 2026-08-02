@@ -871,6 +871,23 @@ static struct Node *new_desg_node(struct Var *var, struct Designator *desg,
   return new_unary(NODE_EXPR_STMT, node, rhs->tok);
 }
 
+static struct Node *lvar_init_zero(struct Token **token, struct Node *cur,
+                                   struct Var *var, struct Type *ty,
+                                   struct Designator *desg) {
+  CHECK(token != nullptr && *token != nullptr);
+  CHECK(ty != nullptr);
+  if (ty->kind == TYPE_ARRAY) {
+    for (int i = 0; i < ty->array_size; i++) {
+      struct Designator desg2 = {desg, i++};
+      cur = lvar_init_zero(token, cur, var, ty->base, &desg2);
+    }
+    return cur;
+  }
+
+  cur->next = new_desg_node(var, desg, new_num(0, *token));
+  return cur->next;
+}
+
 /**
  * @brief
  * lvar-initializer = assign
@@ -886,6 +903,9 @@ static struct Node *new_desg_node(struct Var *var, struct Designator *desg,
  *   x[1][0]=4;
  *   x[1][1]=5;
  *   x[1][2]=6;
+ *
+ * If an initializer list is shorter than an array, excess array elements are
+ * initialized with 0.
  */
 static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
                                      struct Var *var, struct Type *ty,
@@ -906,6 +926,13 @@ static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
     } while (!peek_end(token) && consume(token, ","));
 
     expect_end(token);
+
+    // Set excess array elements to zero.
+    while (i < ty->array_size) {
+      struct Designator desg2 = {desg, i++};
+      cur = lvar_init_zero(token, cur, var, ty->base, &desg2);
+    }
+
     return cur;
   }
 
