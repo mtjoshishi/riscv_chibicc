@@ -842,7 +842,8 @@ static struct Function *function(struct Token **token) {
 
 struct Designator {
   struct Designator *next;
-  int idx;
+  int idx;            // array
+  struct Member *mem; // struct
 };
 
 /**
@@ -859,6 +860,13 @@ static struct Node *new_desg_node2(struct Var *var, struct Designator *desg) {
     return new_var(var, tok);
 
   struct Node *node = new_desg_node2(var, desg->next);
+
+  if (desg->mem != nullptr) {
+    node = new_unary(NODE_MEMBER, node, desg->mem->tok);
+    node->member_name = desg->mem->name;
+    return node;
+  }
+
   node = new_binary(NODE_ADD, node, new_num(desg->idx, tok), tok);
   return new_unary(NODE_DEREF, node, tok);
 }
@@ -878,7 +886,7 @@ static struct Node *lvar_init_zero(struct Token **token, struct Node *cur,
   CHECK(ty != nullptr);
   if (ty->kind == TYPE_ARRAY) {
     for (int i = 0; i < ty->array_size; i++) {
-      struct Designator desg2 = {desg, i++};
+      struct Designator desg2 = {desg, i++, nullptr};
       cur = lvar_init_zero(token, cur, var, ty->base, &desg2);
     }
     return cur;
@@ -938,14 +946,14 @@ static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
     int i;
 
     for (i = 0; i < len; i++) {
-      struct Designator desg2 = {desg, i};
+      struct Designator desg2 = {desg, i, nullptr};
       struct Node *rhs = new_num(tok->contents[i], tok);
       cur->next = new_desg_node(var, &desg2, rhs);
       cur = cur->next;
     }
 
     for (; i < ty->array_size; i++) {
-      struct Designator desg2 = {desg, i};
+      struct Designator desg2 = {desg, i, nullptr};
       cur = lvar_init_zero(token, cur, var, ty->base, &desg2);
     }
     return cur;
@@ -961,7 +969,7 @@ static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
     int i = 0;
 
     do {
-      struct Designator desg2 = {desg, i++};
+      struct Designator desg2 = {desg, i++, nullptr};
       cur = lvar_initializer(token, cur, var, ty->base, &desg2);
     } while (!peek_end(token) && consume(token, ","));
 
@@ -969,13 +977,32 @@ static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
 
     // Set excess array elements to zero.
     while (i < ty->array_size) {
-      struct Designator desg2 = {desg, i++};
+      struct Designator desg2 = {desg, i++, nullptr};
       cur = lvar_init_zero(token, cur, var, ty->base, &desg2);
     }
 
     if (ty->is_incomplete) {
       ty->array_size = i;
       ty->is_incomplete = false;
+    }
+    return cur;
+  }
+
+  if (ty->kind == TYPE_STRUCT) {
+    struct Member *mem = ty->members;
+
+    do {
+      struct Designator desg2 = {desg, 0, mem};
+      cur = lvar_initializer(token, cur, var, mem->ty, &desg2);
+      mem = mem->next;
+    } while (!peek_end(token) && consume(token, ","));
+
+    expect_end(token);
+
+    // Set excess struct elements to zero.
+    for (; mem != nullptr; mem = mem->next) {
+      struct Designator desg2 = {desg, 0, mem};
+      cur = lvar_init_zero(token, cur, var, mem->ty, &desg2);
     }
     return cur;
   }
