@@ -904,11 +904,17 @@ static struct Node *lvar_init_zero(struct Token **token, struct Node *cur,
  *   x[1][1]=5;
  *   x[1][2]=6;
  *
- * If an initializer list is shorter than an array, excess array elements are
- * initialized with 0.
+ * There are a few special rules for ambiguous initializers and shorthand
+ * notations:
  *
- * A char array can be initialized by a string literal. For example,
- * `char x[4] = "foo"` is equivalent to `char x[4] = {'f', 'o', 'o', '\0'}`.
+ * - If an initializer list is shorter than an array, excess array elements are
+ *   initialized with 0.
+ *
+ * - A char array can be initialized by a string literal. For example,
+ *   `char x[4] = "foo"` is equivalent to `char x[4] = {'f', 'o', 'o', '\0'}`.
+ *
+ * - If a rhs is an incomplete array, its size is set by counting the number of
+ *   items on the rhs. For example, `x` in `int x[]={1,2,3}` has type `int[3]`.
  */
 static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
                                      struct Var *var, struct Type *ty,
@@ -921,6 +927,11 @@ static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
     // Initialize a char array with a string literal.
     struct Token *tok = *token;
     *token = (*token)->next;
+
+    if (ty->is_incomplete) {
+      ty->array_size = tok->content_len;
+      ty->is_incomplete = false;
+    }
 
     long len =
         (ty->array_size < tok->content_len) ? ty->array_size : tok->content_len;
@@ -962,6 +973,10 @@ static struct Node *lvar_initializer(struct Token **token, struct Node *cur,
       cur = lvar_init_zero(token, cur, var, ty->base, &desg2);
     }
 
+    if (ty->is_incomplete) {
+      ty->array_size = i;
+      ty->is_incomplete = false;
+    }
     return cur;
   }
 
