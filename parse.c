@@ -244,6 +244,7 @@ static struct Node *declaration(struct Token **token);
 static bool is_typename(struct Token **token);
 static struct Node *stmt(struct Token **token);
 static struct Node *expr(struct Token **token);
+static long eval(struct Node *node);
 static long const_expr(struct Token **token);
 static struct Node *assign(struct Token **token);
 static struct Node *conditional(struct Token **token);
@@ -775,7 +776,64 @@ static void expect_end(struct Token **token) {
   expect(token, "}");
 }
 
-/// @brief global-var = type-specifier declarator type-suffix ";"
+static struct Initializer *new_init_val(struct Initializer *cur, long sz,
+                                        long val) {
+  CHECK(cur != nullptr);
+  struct Initializer *init = calloc(1, sizeof(*init));
+  CHECK(init != nullptr);
+  init->sz = sz;
+  init->val = val;
+  cur->next = init;
+  return init;
+}
+
+static struct Initializer *new_init_label(struct Initializer *cur,
+                                          char *label) {
+  CHECK(cur != nullptr);
+  CHECK(label != nullptr);
+
+  struct Initializer *init = calloc(1, sizeof(*init));
+  init->label = label;
+  cur->next = init;
+  return init;
+}
+
+static struct Initializer *gvar_init_string(const char *p, long len) {
+  CHECK(p != nullptr);
+  struct Initializer head;
+  head.next = nullptr;
+  struct Initializer *cur = &head;
+  for (long i = 0; i < len; i++)
+    cur = new_init_val(cur, 1, p[i]);
+  return head.next;
+}
+
+static struct Initializer *gvar_initializer(struct Token **token,
+                                            struct Initializer *cur,
+                                            struct Type *ty) {
+  CHECK(token != nullptr && *token != nullptr);
+  CHECK(cur != nullptr && ty != nullptr);
+
+  struct Token *tok = *token;
+  struct Node *expr = conditional(token);
+
+  if (expr->kind == NODE_ADDR) {
+    if (expr->lhs->kind != NODE_VAR)
+      error_tok(tok, "Invalid initializer.");
+    return new_init_label(cur, expr->lhs->var->name);
+  }
+
+  if (expr->kind == NODE_VAR && expr->var->ty->kind == TYPE_ARRAY)
+    return new_init_label(cur, expr->var->name);
+
+  return new_init_val(cur, __size_of(ty, *token), eval(expr));
+}
+
+/**
+ * @brief
+ * global-var = type-specifier declarator type-suffix ("=" gvar-initializer?)
+ * ";"
+ */
 static void global_var(struct Token **token) {
   CHECK(token != nullptr && *token != nullptr);
 
@@ -784,10 +842,17 @@ static void global_var(struct Token **token) {
   struct Token *tok = *token;
   ty = declarator(token, ty, &name);
   ty = type_suffix(token, ty);
-  expect(token, ";");
 
   struct Var *var = push_var(name, ty, false, tok);
   push_scope(name)->var = var;
+
+  if (consume(token, "=")) {
+    struct Initializer head;
+    head.next = nullptr;
+    gvar_initializer(token, &head, ty);
+    var->initializer = head.next;
+  }
+  expect(token, ";");
 }
 
 /**
@@ -1717,8 +1782,7 @@ static struct Node *primary(struct Token **token) {
 
     struct Type *ty = array_of(char_type(), tok->content_len);
     struct Var *var = push_var(new_label(), ty, false, nullptr);
-    var->contents = tok->contents;
-    var->content_len = tok->content_len;
+    var->initializer = gvar_init_string(tok->contents, tok->content_len);
     return new_var(var, tok);
   }
 

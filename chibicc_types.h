@@ -30,6 +30,8 @@ extern char *filename;
 
 // Kind of node for AST
 struct Member;
+struct Type;
+struct Initializer;
 
 enum NodeKind {
   NODE_ADD,        // '+'
@@ -86,8 +88,6 @@ enum NodeKind {
   NODE_NULL,       // Empty statement
 };
 
-struct Type;
-
 // Variable
 struct Var {
   char *name;        // Name of variable
@@ -99,8 +99,7 @@ struct Var {
   long offset; // Offset of the stack from the frame pointer.
 
   // For global string literal
-  char *contents;  // String literal contents including NULL termination
-  int content_len; // Length of string literal
+  struct Initializer *initializer;
 };
 
 struct VarList {
@@ -147,6 +146,21 @@ struct Node {
 
   struct Var *var; // Object of variable. Use if kind is NODE_VAR.
   long val;        // Value if kind is NODE_NUM
+};
+
+/**
+ * @brief Global variable initializer. Global variables can be initialized
+ * either by a constant expression or a pointer to another global variable.
+ */
+struct Initializer {
+  struct Initializer *next;
+
+  // Constant expression.
+  long sz;
+  long val;
+
+  // Reference to another global variable.
+  char *label;
 };
 
 enum TypeKind {

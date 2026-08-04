@@ -723,13 +723,34 @@ static void emit_data(struct Program *prog) {
     struct Var *var = vl->var;
     printf("%s:\n", var->name);
 
-    if (var->contents == nullptr) {
+    if (var->initializer == nullptr) {
       printf("    .zero %ld\n", __size_of(var->ty, var->tok));
       continue;
     }
 
-    for (int i = 0; i < var->content_len; i++) {
-      printf("    .byte %d\n", var->contents[i]);
+    for (struct Initializer *init = var->initializer; init != nullptr;
+         init = init->next) {
+      if (init->label != nullptr) {
+        printf("    .dword %s\n", init->label);
+        continue;
+      }
+
+      switch (init->sz) {
+      case 1:
+        printf("    .byte %ld\n", init->val);
+        break;
+      case 2:
+        printf("    .half %ld\n", init->val);
+        break;
+      case 4:
+        printf("    .word %ld\n", init->val);
+        break;
+      case 8:
+        printf("    .dword %ld\n", init->val);
+        break;
+      default:
+        error_tok(var->tok, "Unreachable");
+      }
     }
   }
 }
