@@ -798,6 +798,13 @@ static struct Initializer *new_init_label(struct Initializer *cur,
   return init;
 }
 
+static struct Initializer *new_init_zero(struct Initializer *cur, long nbytes) {
+  CHECK(cur != nullptr);
+  for (long i = 0; i < nbytes; i++)
+    cur = new_init_val(cur, 1, 0);
+  return cur;
+}
+
 static struct Initializer *gvar_init_string(const char *p, long len) {
   CHECK(p != nullptr);
   struct Initializer head;
@@ -808,6 +815,25 @@ static struct Initializer *gvar_init_string(const char *p, long len) {
   return head.next;
 }
 
+static struct Initializer *emit_struct_with_padding(struct Token **token,
+                                                    struct Initializer *cur,
+                                                    struct Type *parent,
+                                                    struct Member *mem) {
+  CHECK(token != nullptr && *token != nullptr);
+  CHECK(cur != nullptr && parent != nullptr && mem != nullptr);
+
+  long end = mem->offset + __size_of(mem->ty, *token);
+  long padding;
+  if (mem->next != nullptr)
+    padding = mem->next->offset - end;
+  else
+    padding = __size_of(parent, *token) - end;
+
+  if (padding != 0)
+    cur = new_init_zero(cur, padding);
+  return cur;
+}
+
 static struct Initializer *gvar_initializer(struct Token **token,
                                             struct Initializer *cur,
                                             struct Type *ty) {
@@ -815,6 +841,54 @@ static struct Initializer *gvar_initializer(struct Token **token,
   CHECK(cur != nullptr && ty != nullptr);
 
   struct Token *tok = *token;
+
+  if (consume(token, "{")) {
+    if (ty->kind == TYPE_ARRAY) {
+      long i = 0;
+
+      do {
+        cur = gvar_initializer(token, cur, ty->base);
+        i++;
+      } while (!peek_end(token) && consume(token, ","));
+
+      expect_end(token);
+
+      // Set excess array elements to zero.
+      if (i < ty->array_size)
+        cur =
+            new_init_zero(cur, __size_of(ty->base, tok) * (ty->array_size - i));
+
+      if (ty->is_incomplete) {
+        ty->array_size = i;
+        ty->is_incomplete = false;
+      }
+
+      return cur;
+    }
+
+    if (ty->kind == TYPE_STRUCT) {
+      struct Member *mem = ty->members;
+
+      do {
+        cur = gvar_initializer(token, cur, mem->ty);
+        cur = emit_struct_with_padding(token, cur, ty, mem);
+        mem = mem->next;
+      } while (!peek_end(token) && consume(token, ","));
+
+      expect_end(token);
+
+      // Set excess struct elements to zero.
+      if (mem != nullptr) {
+        long sz = __size_of(ty, tok) - mem->offset;
+        if (sz != 0)
+          cur = new_init_zero(cur, sz);
+      }
+      return cur;
+    }
+
+    error_tok(tok, "Invalid initializer");
+  }
+
   struct Node *expr = conditional(token);
 
   if (expr->kind == NODE_ADDR) {
